@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ImgConvert Pro - Fast & Private Image Converter</title>
+  <!-- Modern Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Stylesheets -->
+  <script type="module" crossorigin src="/assets/index-CdZYk95W.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-XE7IFM7k.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Background Glow Elements -->
+    <div class="glow-sphere glow-sphere-1"></div>
+    <div class="glow-sphere glow-sphere-2"></div>
+
+    <!-- Sidebar Navigation -->
+    <aside class="app-sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-icon">
+          <i data-lucide="layers"></i>
+        </div>
+        <div class="brand-text">
+          <h1>ImgConvert</h1>
+          <span>Pro Suite</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" data-tab="png-to-jpg">
+          <i data-lucide="image"></i>
+          <span>PNG & JFIF to JPG</span>
+          <span class="badge badge-active">Core</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="add-logo">
+          <i data-lucide="award"></i>
+          <span>Add Logo</span>
+          <span class="badge badge-active">New</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="remove-gemini">
+          <i data-lucide="eraser"></i>
+          <span>Remove Gemini Logo</span>
+          <span class="badge badge-active">Bulk</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="crop-image">
+          <i data-lucide="crop"></i>
+          <span>Crop Image</span>
+          <span class="badge badge-active">New</span>
+        </a>
+        <a href="#" class="nav-item disabled" data-tab="compress">
+          <i data-lucide="minimize-2"></i>
+          <span>Compress Image</span>
+          <span class="badge">Soon</span>
+        </a>
+        <a href="#" class="nav-item disabled" data-tab="resize">
+          <i data-lucide="move"></i>
+          <span>Resize Image</span>
+          <span class="badge">Soon</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="privacy-notice">
+          <i data-lucide="shield-check"></i>
+          <div>
+            <h3>100% Private</h3>
+            <p>All processing is done offline in your browser. No files are uploaded.</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Workspace Area -->
+    <main class="app-workspace">
+      
+      <!-- Panel 1: PNG / JFIF to JPG Converter -->
+      <div class="tab-panel" id="panel-png-to-jpg">
+        <header class="workspace-header">
+          <div class="header-title">
+            <h2>Convert PNG / JFIF to JPG</h2>
+            <p>Batch convert PNG or JFIF files to high-quality JPEG format locally.</p>
+          </div>
+        </header>
+
+        <div class="workspace-content">
+          <!-- Drag & Drop Container -->
+          <div class="dropzone" id="dropzone">
+            <input type="file" id="fileInput" multiple accept=".png,.jfif" class="file-input-hidden">
+            <div class="dropzone-inner">
+              <div class="upload-icon-container">
+                <i data-lucide="upload-cloud" class="upload-icon"></i>
+              </div>
+              <h3>Drag and drop files here</h3>
+              <p class="dropzone-subtitle">or <span class="browse-link">browse files</span> from your computer</p>
+              <p class="dropzone-formats">Supports PNG and JFIF files (max 50MB per file)</p>
+            </div>
+          </div>
+
+          <!-- Options Panel (Hidden until files are added) -->
+          <div class="options-card panel-hidden" id="optionsPanel">
+            <div class="options-header">
+              <i data-lucide="sliders"></i>
+              <h3>Conversion Settings</h3>
+            </div>
+            <div class="options-grid">
+              <!-- Quality Control -->
+              <div class="option-group">
+                <div class="option-label-row">
+                  <label for="qualitySlider">JPG Quality</label>
+                  <span class="option-value" id="qualityValue">90%</span>
+                </div>
+                <input type="range" id="qualitySlider" min="10" max="100" value="90" class="slider">
+                <p class="option-desc">Higher quality produces clearer images but larger file sizes.</p>
+              </div>
+
+              <!-- Transparency Control -->
+              <div class="option-group">
+                <label for="transparencyBg">PNG Transparency Fill</label>
+                <div class="select-wrapper">
+                  <select id="transparencyBg" class="select-input">
+                    <option value="#ffffff" selected>White (Standard)</option>
+                    <option value="#000000">Black</option>
+                    <option value="custom">Custom Color...</option>
+                  </select>
+                  <i data-lucide="chevron-down" class="select-arrow"></i>
+                </div>
+                <div class="custom-color-container panel-hidden" id="customColorContainer">
+                  <input type="color" id="customColorPicker" value="#ffffff" class="color-picker">
+                  <span class="color-hex" id="customHex">#ffffff</span>
+                </div>
+                <p class="option-desc">Choose a background color to fill any transparent parts of your PNG.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Queue Section (Hidden until files are added) -->
+          <div class="queue-section panel-hidden" id="queueSection">
+            <div class="queue-header">
+              <div class="queue-info">
+                <h3>Conversion Queue</h3>
+                <span class="queue-stats" id="queueStats">0 files • 0.0 KB</span>
+              </div>
+              <div class="queue-actions">
+                <button class="btn btn-outline" id="clearQueueBtn">
+                  <i data-lucide="trash-2"></i>
+                  <span>Clear All</span>
+                </button>
+                <button class="btn btn-outline" id="addMoreBtn">
+                  <i data-lucide="plus"></i>
+                  <span>Add Files</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Queue List Grid -->
+            <div class="queue-grid" id="queueGrid">
+              <!-- File Cards injected here -->
+            </div>
+
+            <!-- Master Control Bar -->
+            <div class="master-bar">
+              <div class="master-progress-container">
+                <div class="master-progress-bar" id="masterProgressBar" style="width: 0%"></div>
+              </div>
+              <div class="master-bar-inner">
+                <div class="master-status" id="masterStatus">Ready to convert</div>
+                <div class="master-buttons">
+                  <button class="btn btn-primary" id="convertBtn">
+                    <i data-lucide="play"></i>
+                    <span>Convert All</span>
+                  </button>
+                  <button class="btn btn-success" id="downloadAllBtn" disabled>
+                    <i data-lucide="download"></i>
+                    <span>Download All (.zip)</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel 2: Add Logo Watermark -->
+      <div class="tab-panel hidden" id="panel-add-logo">
+        <header class="workspace-header">
+          <div class="header-title">
+            <h2>Add Logo Watermark</h2>
+            <p>Batch overlay a logo watermark onto your product photos locally.</p>
+          </div>
+        </header>
+
+        <div class="workspace-content">
+          <!-- Drag & Drop Container -->
+          <div class="dropzone" id="logo-dropzone">
+            <input type="file" id="logo-fileInput" multiple accept=".png,.jpg,.jpeg,.bmp,.webp" class="file-input-hidden">
+            <div class="dropzone-inner">
+              <div class="upload-icon-container">
+                <i data-lucide="image" class="upload-icon"></i>
+              </div>
+              <h3>Drag and drop product photos here</h3>
+              <p class="dropzone-subtitle">or <span class="browse-link">browse files</span> from your computer</p>
+              <p class="dropzone-formats">Supports PNG, JPG, JPEG, BMP, and WEBP (max 50MB per file)</p>
+            </div>
+          </div>
+
+          <!-- Options Panel -->
+          <div class="options-card" id="logo-optionsPanel">
+            <div class="options-header">
+              <i data-lucide="sliders"></i>
+              <h3>Watermark Settings</h3>
+            </div>
+            
+            <div class="options-grid">
+              <!-- Logo File Uploader Widget -->
+              <div class="option-group">
+                <label>Logo Image File</label>
+                <div class="logo-uploader" id="logo-uploader-box">
+                  <input type="file" id="watermark-logo-file" accept=".png,.jpg,.jpeg,.svg" class="hidden">
+                  <div class="logo-uploader-placeholder" id="logo-upload-prompt">
+                    <i data-lucide="upload-cloud"></i>
+                    <span>Upload Logo Image</span>
+                  </div>
+                  <div class="logo-uploader-preview hidden" id="logo-upload-preview">
+                    <img src="" alt="Logo Preview" id="logo-preview-img">
+                    <div class="logo-preview-details">
+                      <span class="logo-preview-name" id="logo-preview-name">logo.png</span>
+                      <button type="button" class="btn-logo-remove" id="logo-remove-btn" title="Remove logo">
+                        <i data-lucide="trash-2"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <p class="option-desc">Upload a transparent PNG logo for best watermarking results.</p>
+              </div>
+
+              <!-- Position Control -->
+              <div class="option-group">
+                <label for="logoPosition">Logo Position</label>
+                <div class="select-wrapper">
+                  <select id="logoPosition" class="select-input">
+                    <option value="bottom_right" selected>Bottom Right</option>
+                    <option value="bottom_left">Bottom Left</option>
+                    <option value="top_right">Top Right</option>
+                    <option value="top_left">Top Left</option>
+                    <option value="center">Center</option>
+                  </select>
+                  <i data-lucide="chevron-down" class="select-arrow"></i>
+                </div>
+                <p class="option-desc">Choose which corner or area to overlay the logo on.</p>
+              </div>
+
+              <!-- Size scale Slider -->
+              <div class="option-group">
+                <div class="option-label-row">
+                  <label for="logoSizeSlider">Logo Size Scale</label>
+                  <span class="option-value" id="logoSizeValue">17%</span>
+                </div>
+                <input type="range" id="logoSizeSlider" min="5" max="50" value="17" class="slider">
+                <p class="option-desc">Logo width as a percentage of the product photo width.</p>
+              </div>
+
+              <!-- Format & Quality Options -->
+              <div class="option-group">
+                <div class="options-flex-row" style="display: flex; gap: 12px;">
+                  <div style="flex: 1;">
+                    <label for="logoOutFormat">Output Format</label>
+                    <div class="select-wrapper">
+                      <select id="logoOutFormat" class="select-input">
+                        <option value="image/jpeg" selected>JPG</option>
+                        <option value="image/png">PNG</option>
+                      </select>
+                      <i data-lucide="chevron-down" class="select-arrow"></i>
+                    </div>
+                  </div>
+                  <div style="flex: 1;" id="logoQualityGroup">
+                    <div class="option-label-row">
+                      <label for="logoQualitySlider">JPG Quality</label>
+                      <span class="option-value" id="logoQualityValue">90%</span>
+                    </div>
+                    <input type="range" id="logoQualitySlider" min="10" max="100" value="90" class="slider">
+                  </div>
+                </div>
+                <p class="option-desc">PNG preserves transparency; JPG reduces size.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Queue Section (Hidden until files are added) -->
+          <div class="queue-section panel-hidden" id="logo-queueSection">
+            <div class="queue-header">
+              <div class="queue-info">
+                <h3>Product Images Queue</h3>
+                <span class="queue-stats" id="logo-queueStats">0 files • 0.0 KB</span>
+              </div>
+              <div class="queue-actions">
+                <button class="btn btn-outline" id="logo-clearQueueBtn">
+                  <i data-lucide="trash-2"></i>
+                  <span>Clear All</span>
+                </button>
+                <button class="btn btn-outline" id="logo-addMoreBtn">
+                  <i data-lucide="plus"></i>
+                  <span>Add Files</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Queue List Grid -->
+            <div class="queue-grid" id="logo-queueGrid">
+              <!-- File Cards injected here -->
+            </div>
+
+            <!-- Master Control Bar -->
+            <div class="master-bar">
+              <div class="master-progress-container">
+                <div class="master-progress-bar" id="logo-masterProgressBar" style="width: 0%"></div>
+              </div>
+              <div class="master-bar-inner">
+                <div class="master-status" id="logo-masterStatus">Upload product photos & logo to start</div>
+                <div class="master-buttons">
+                  <button class="btn btn-primary" id="logo-convertBtn" disabled>
+                    <i data-lucide="award"></i>
+                    <span>Add Logo to All</span>
+                  </button>
+                  <button class="btn btn-success" id="logo-downloadAllBtn" disabled>
+                    <i data-lucide="download"></i>
+                    <span>Download All (.zip)</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel 3: Remove Gemini Logo Watermark -->
+      <div class="tab-panel hidden" id="panel-remove-gemini">
+        <header class="workspace-header">
+          <div class="header-title">
+            <h2>Remove Gemini Logo Watermark</h2>
+            <p>Batch remove Gemini's visible bottom-right logo watermark locally.</p>
+          </div>
+        </header>
+
+        <div class="workspace-content">
+          <!-- Drag & Drop Container -->
+          <div class="dropzone" id="gemini-dropzone">
+            <input type="file" id="gemini-fileInput" multiple accept=".png,.jpg,.jpeg,.webp" class="file-input-hidden">
+            <div class="dropzone-inner">
+              <div class="upload-icon-container">
+                <i data-lucide="eraser" class="upload-icon"></i>
+              </div>
+              <h3>Drag and drop Gemini images here</h3>
+              <p class="dropzone-subtitle">or <span class="browse-link">browse files</span> from your computer</p>
+              <p class="dropzone-formats">Supports PNG, JPG, JPEG, and WEBP files (max 50MB per file)</p>
+            </div>
+          </div>
+
+          <!-- Options Panel (Hidden until files are added) -->
+          <div class="options-card panel-hidden" id="gemini-optionsPanel">
+            <div class="options-header">
+              <i data-lucide="sliders"></i>
+              <h3>Removal Settings</h3>
+            </div>
+            <div class="options-grid">
+              <div class="option-group">
+                <label for="geminiPasses">Cleanup Strength</label>
+                <div class="select-wrapper">
+                  <select id="geminiPasses" class="select-input">
+                    <option value="3">Balanced</option>
+                    <option value="4" selected>Thorough</option>
+                    <option value="6">Extra Passes</option>
+                  </select>
+                  <i data-lucide="chevron-down" class="select-arrow"></i>
+                </div>
+                <p class="option-desc">Use more passes for stubborn visible logo edges.</p>
+              </div>
+
+              <div class="option-group">
+                <label>Output</label>
+                <div class="static-option">
+                  <i data-lucide="file-image"></i>
+                  <span>PNG files with cleaned pixels</span>
+                </div>
+                <p class="option-desc">Targets only Gemini's visible logo watermark, not invisible SynthID metadata.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Queue Section (Hidden until files are added) -->
+          <div class="queue-section panel-hidden" id="gemini-queueSection">
+            <div class="queue-header">
+              <div class="queue-info">
+                <h3>Gemini Images Queue</h3>
+                <span class="queue-stats" id="gemini-queueStats">0 files - 0.0 KB</span>
+              </div>
+              <div class="queue-actions">
+                <button class="btn btn-outline" id="gemini-clearQueueBtn">
+                  <i data-lucide="trash-2"></i>
+                  <span>Clear All</span>
+                </button>
+                <button class="btn btn-outline" id="gemini-addMoreBtn">
+                  <i data-lucide="plus"></i>
+                  <span>Add Files</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Queue List Grid -->
+            <div class="queue-grid" id="gemini-queueGrid">
+              <!-- File Cards injected here -->
+            </div>
+
+            <!-- Master Control Bar -->
+            <div class="master-bar">
+              <div class="master-progress-container">
+                <div class="master-progress-bar" id="gemini-masterProgressBar" style="width: 0%"></div>
+              </div>
+              <div class="master-bar-inner">
+                <div class="master-status" id="gemini-masterStatus">Ready to remove Gemini logo</div>
+                <div class="master-buttons">
+                  <button class="btn btn-primary" id="gemini-convertBtn" disabled>
+                    <i data-lucide="eraser"></i>
+                    <span>Remove From All</span>
+                  </button>
+                  <button class="btn btn-success" id="gemini-downloadAllBtn" disabled>
+                    <i data-lucide="download"></i>
+                    <span>Download All (.zip)</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel 4: Crop Image -->
+      <div class="tab-panel hidden" id="panel-crop-image">
+        <header class="workspace-header">
+          <div class="header-title">
+            <h2>Crop Image</h2>
+            <p>Crop JPG, PNG, GIF, WEBP, or BMP images by dragging a rectangle or entering exact pixels.</p>
+          </div>
+        </header>
+
+        <div class="workspace-content">
+          <!-- Drag & Drop Container -->
+          <div class="dropzone" id="crop-dropzone">
+            <input type="file" id="crop-fileInput" accept=".png,.jpg,.jpeg,.gif,.webp,.bmp" class="file-input-hidden">
+            <div class="dropzone-inner">
+              <div class="upload-icon-container">
+                <i data-lucide="crop" class="upload-icon"></i>
+              </div>
+              <h3>Drag and drop an image here</h3>
+              <p class="dropzone-subtitle">or <span class="browse-link">browse files</span> from your computer</p>
+              <p class="dropzone-formats">Supports PNG, JPG, JPEG, GIF, WEBP, and BMP (max 50MB)</p>
+            </div>
+          </div>
+
+          <section class="crop-editor panel-hidden" id="crop-editorSection">
+            <div class="crop-stage">
+              <div class="crop-stage-header">
+                <div class="crop-file-details">
+                  <h3 id="crop-fileName">image.png</h3>
+                  <span id="crop-imageMeta">0 x 0 px</span>
+                </div>
+                <button class="btn btn-outline" id="crop-changeBtn">
+                  <i data-lucide="replace"></i>
+                  <span>Change Image</span>
+                </button>
+              </div>
+              <div class="crop-canvas-wrap">
+                <img id="crop-image" alt="Crop preview">
+              </div>
+            </div>
+
+            <aside class="crop-options options-card">
+              <div class="options-header">
+                <i data-lucide="sliders"></i>
+                <h3>Crop Options</h3>
+              </div>
+
+              <div class="crop-input-grid">
+                <div class="option-group">
+                  <label for="cropWidth">Width (px)</label>
+                  <input type="number" min="1" id="cropWidth" class="number-input" value="1">
+                </div>
+                <div class="option-group">
+                  <label for="cropHeight">Height (px)</label>
+                  <input type="number" min="1" id="cropHeight" class="number-input" value="1">
+                </div>
+                <div class="option-group">
+                  <label for="cropX">Position X (px)</label>
+                  <input type="number" min="0" id="cropX" class="number-input" value="0">
+                </div>
+                <div class="option-group">
+                  <label for="cropY">Position Y (px)</label>
+                  <input type="number" min="0" id="cropY" class="number-input" value="0">
+                </div>
+              </div>
+
+              <div class="option-group">
+                <label for="cropAspectRatio">Aspect Ratio</label>
+                <div class="select-wrapper">
+                  <select id="cropAspectRatio" class="select-input">
+                    <option value="free" selected>Free</option>
+                    <option value="1">Square</option>
+                    <option value="1.7777777778">16:9</option>
+                    <option value="1.3333333333">4:3</option>
+                    <option value="0.75">3:4</option>
+                    <option value="0.5625">9:16</option>
+                  </select>
+                  <i data-lucide="chevron-down" class="select-arrow"></i>
+                </div>
+              </div>
+
+              <div class="crop-status" id="crop-status">Adjust the crop box, then crop to download.</div>
+
+              <div class="crop-option-actions">
+                <button class="btn btn-outline" id="crop-resetBtn">
+                  <i data-lucide="rotate-ccw"></i>
+                  <span>Reset</span>
+                </button>
+                <button class="btn btn-primary" id="crop-downloadBtn" disabled>
+                  <i data-lucide="download"></i>
+                  <span>Crop Image</span>
+                </button>
+              </div>
+            </aside>
+          </section>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Template for File Cards -->
+  <template id="fileCardTemplate">
+    <div class="file-card" data-id="">
+      <button class="card-remove-btn" title="Remove file">
+        <i data-lucide="x"></i>
+      </button>
+      <div class="card-preview">
+        <div class="preview-wrapper">
+          <img src="" alt="Thumbnail" class="preview-img hidden">
+          <img src="" alt="Watermark" class="watermark-overlay-img hidden">
+        </div>
+        <div class="preview-placeholder">
+          <i data-lucide="image" class="placeholder-icon"></i>
+        </div>
+      </div>
+      <div class="card-details">
+        <h4 class="file-name" title="">filename.png</h4>
+        <div class="file-meta">
+          <span class="file-size">0 KB</span>
+          <span class="file-badge badge-pending">Pending</span>
+        </div>
+        <div class="card-progress-bar-container hidden">
+          <div class="card-progress-bar" style="width: 0%"></div>
+        </div>
+        <div class="conversion-result hidden">
+          <span class="result-size">0 KB</span>
+          <span class="result-savings">-0%</span>
+        </div>
+      </div>
+      <div class="card-actions">
+        <button class="btn btn-card-download" disabled>
+          <i data-lucide="download"></i>
+          <span>Download</span>
+        </button>
+      </div>
+    </div>
+  </template>
+
+  <!-- Main Script -->
+  <script>
+    // Initialize Lucide Icons on load
+    document.addEventListener("DOMContentLoaded", () => {
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
