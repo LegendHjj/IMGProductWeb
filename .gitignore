@@ -1,2 +1,4 @@
 /SourceCode
 /node_modules
+/dist
+/.env
