@@ -1,6 +1,6 @@
 import Cropper from 'cropperjs';
 import 'cropperjs/dist/cropper.css';
-import { convertToJpg, applyLogo, createZip, formatBytes, getExtension, removeGeminiWatermark } from './utils.js';
+import { convertToJpg, applyLogo, createZip, formatBytes, getExtension, removeGeminiWatermark, extractImageUrls } from './utils.js';
 
 // ==========================================
 // APPLICATION STATE
@@ -26,6 +26,10 @@ let cropper = null;
 let cropImageFile = null;
 let cropImageUrl = null;
 let isCropDataSyncing = false;
+
+// Bulk Downloader State
+let bulkQueue = [];
+let isBulkDownloading = false;
 
 // ==========================================
 // DOM SELECTORS
@@ -115,6 +119,22 @@ const cropResetBtn = document.getElementById('crop-resetBtn');
 const cropChangeBtn = document.getElementById('crop-changeBtn');
 const cropDownloadBtn = document.getElementById('crop-downloadBtn');
 const cropStatus = document.getElementById('crop-status');
+
+// Bulk Downloader Elements
+const bulkPasteArea = document.getElementById('bulk-pasteArea');
+const bulkClearTextBtn = document.getElementById('bulk-clearTextBtn');
+const bulkExtractBtn = document.getElementById('bulk-extractBtn');
+const bulkOptionsPanel = document.getElementById('bulk-optionsPanel');
+const bulkNamePrefix = document.getElementById('bulk-namePrefix');
+const bulkExtensionFallback = document.getElementById('bulk-extensionFallback');
+const bulkQueueSection = document.getElementById('bulk-queueSection');
+const bulkQueueStats = document.getElementById('bulk-queueStats');
+const bulkClearQueueBtn = document.getElementById('bulk-clearQueueBtn');
+const bulkQueueGrid = document.getElementById('bulk-queueGrid');
+const bulkMasterProgressBar = document.getElementById('bulk-masterProgressBar');
+const bulkMasterStatus = document.getElementById('bulk-masterStatus');
+const bulkConvertBtn = document.getElementById('bulk-convertBtn');
+const bulkDownloadAllBtn = document.getElementById('bulk-downloadAllBtn');
 
 // Reusable card template
 const fileCardTemplate = document.getElementById('fileCardTemplate');
@@ -256,6 +276,37 @@ function init() {
   cropResetBtn.addEventListener('click', resetCropBox);
   cropChangeBtn.addEventListener('click', () => cropFileInput.click());
   cropDownloadBtn.addEventListener('click', downloadCroppedImage);
+
+  // ----------------------------------------
+  // TAB 5: BULK DOWNLOADER LISTENERS
+  // ----------------------------------------
+  bulkExtractBtn.addEventListener('click', handleBulkExtract);
+  bulkClearTextBtn.addEventListener('click', () => {
+    bulkPasteArea.value = '';
+    handleBulkExtract();
+  });
+  
+  let bulkPasteTimeout = null;
+  bulkPasteArea.addEventListener('input', () => {
+    clearTimeout(bulkPasteTimeout);
+    bulkPasteTimeout = setTimeout(handleBulkExtract, 500);
+  });
+
+  bulkNamePrefix.addEventListener('input', () => {
+    updateBulkItemNames();
+  });
+  bulkNamePrefix.addEventListener('change', () => {
+    updateBulkItemNames();
+    resetBulkQueueForRedownload();
+  });
+  bulkExtensionFallback.addEventListener('change', () => {
+    updateBulkItemNames();
+    resetBulkQueueForRedownload();
+  });
+
+  bulkClearQueueBtn.addEventListener('click', clearBulkQueue);
+  bulkConvertBtn.addEventListener('click', downloadBulkAll);
+  bulkDownloadAllBtn.addEventListener('click', packageBulkZip);
 }
 
 // ==========================================
@@ -1451,7 +1502,326 @@ function destroyCropper() {
     cropImageUrl = null;
   }
 
-  cropImage.removeAttribute('src');
+    cropImage.removeAttribute('src');
+}
+
+// ==========================================
+// TAB 5: BULK DOWNLOADER PROCESSORS
+// ==========================================
+
+function handleBulkExtract() {
+  const text = bulkPasteArea.value;
+  const urls = extractImageUrls(text);
+  
+  if (urls.length === 0) {
+    clearBulkQueue();
+    return;
+  }
+
+  bulkOptionsPanel.classList.remove('panel-hidden');
+  bulkQueueSection.classList.remove('panel-hidden');
+
+  const currentUrls = bulkQueue.map(item => item.url);
+  let addedAny = false;
+
+  urls.forEach((url) => {
+    if (currentUrls.includes(url)) return;
+
+    const id = Math.random().toString(36).substring(2, 11);
+    
+    const item = {
+      id: id,
+      url: url,
+      name: '', 
+      ext: '',  
+      size: 0,
+      status: 'pending',
+      progress: 0,
+      localThumbUrl: url, 
+      outputBlob: null,
+      outputUrl: null,
+      outputFormat: '', 
+      errorMessage: null
+    };
+
+    bulkQueue.push(item);
+    renderFileCard(item, bulkQueueGrid, bulkQueue, removeBulkFile, downloadBulkIndividual);
+    addedAny = true;
+  });
+
+  if (addedAny || bulkQueue.length > 0) {
+    updateBulkItemNames();
+    updateBulkQueueStats();
+  }
+}
+
+function getExtensionFromUrl(url, fallback = 'jpg') {
+  try {
+    if (url.includes('susercontent.com/file/') || url.includes('shopee.com/file/')) {
+      return 'jpg';
+    }
+    const urlObj = new URL(url);
+    const pathname = urlObj.pathname;
+    const extIndex = pathname.lastIndexOf('.');
+    if (extIndex !== -1) {
+      const ext = pathname.substring(extIndex + 1).toLowerCase();
+      if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'].includes(ext)) {
+        return ext === 'jpeg' ? 'jpg' : ext;
+      }
+    }
+  } catch (e) {}
+  return fallback;
+}
+
+function updateBulkItemNames() {
+  const nameTemplate = bulkNamePrefix.value || 'image_{n}';
+  const extFallback = bulkExtensionFallback.value;
+
+  bulkQueue.forEach((item, index) => {
+    let name = nameTemplate;
+    if (name.includes('{n}')) {
+      name = name.replace('{n}', index + 1);
+    } else {
+      name = `${name}_${index + 1}`;
+    }
+    
+    const originalExt = getExtensionFromUrl(item.url, 'jpg');
+    const ext = extFallback === 'original' ? originalExt : extFallback;
+
+    item.name = name;
+    item.ext = ext;
+    item.outputFormat = ext;
+
+    const card = bulkQueueGrid.querySelector(`[data-id="${item.id}"]`);
+    if (card) {
+      card.querySelector('.file-name').textContent = `${name}.${ext}`;
+      card.querySelector('.file-name').setAttribute('title', `${name}.${ext}`);
+      
+      if (item.status === 'done') {
+        const badge = card.querySelector('.file-badge');
+        badge.textContent = ext.toUpperCase();
+      }
+    }
+  });
+}
+
+function resetBulkQueueForRedownload() {
+  if (isBulkDownloading) return;
+
+  let changed = false;
+  bulkQueue.forEach((item) => {
+    if (item.status === 'done' || item.status === 'error') {
+      item.status = 'pending';
+      item.progress = 0;
+      if (item.outputUrl) URL.revokeObjectURL(item.outputUrl);
+      item.outputBlob = null;
+      item.outputUrl = null;
+      item.errorMessage = null;
+      updateFileCardUI(item, bulkQueueGrid);
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    bulkMasterStatus.textContent = 'Settings adjusted. Ready to download again.';
+    bulkMasterStatus.className = 'master-status';
+    updateBulkQueueStats();
+    updateBulkMasterProgress();
+  }
+}
+
+function removeBulkFile(id) {
+  const index = bulkQueue.findIndex(item => item.id === id);
+  if (index === -1) return;
+
+  const item = bulkQueue[index];
+  if (item.outputUrl) URL.revokeObjectURL(item.outputUrl);
+
+  bulkQueue.splice(index, 1);
+  const card = bulkQueueGrid.querySelector(`[data-id="${id}"]`);
+  if (card) card.remove();
+
+  if (bulkQueue.length === 0) {
+    bulkOptionsPanel.classList.add('panel-hidden');
+    bulkQueueSection.classList.add('panel-hidden');
+  } else {
+    updateBulkItemNames();
+    updateBulkQueueStats();
+    updateBulkMasterProgress();
+  }
+}
+
+function clearBulkQueue() {
+  if (isBulkDownloading) return;
+
+  bulkQueue.forEach((item) => {
+    if (item.outputUrl) URL.revokeObjectURL(item.outputUrl);
+  });
+
+  bulkQueue = [];
+  bulkQueueGrid.innerHTML = '';
+  
+  bulkOptionsPanel.classList.add('panel-hidden');
+  bulkQueueSection.classList.add('panel-hidden');
+  
+  bulkMasterStatus.textContent = 'Ready to download';
+  bulkMasterStatus.className = 'master-status';
+  updateBulkMasterProgress();
+}
+
+function updateBulkQueueStats() {
+  const count = bulkQueue.length;
+  bulkQueueStats.textContent = `${count} URL${count > 1 ? 's' : ''} found`;
+  bulkConvertBtn.disabled = isBulkDownloading || !bulkQueue.some(item => item.status === 'pending');
+}
+
+function updateBulkMasterProgress() {
+  const total = bulkQueue.length;
+  if (total === 0) {
+    bulkMasterProgressBar.style.width = '0%';
+    bulkDownloadAllBtn.disabled = true;
+    return;
+  }
+
+  const completed = bulkQueue.filter(item => item.status === 'done' || item.status === 'error').length;
+  const percentage = (completed / total) * 100;
+  bulkMasterProgressBar.style.width = `${percentage}%`;
+
+  const successCount = bulkQueue.filter(item => item.status === 'done').length;
+  bulkDownloadAllBtn.disabled = successCount === 0 || isBulkDownloading;
+}
+
+function downloadBulkIndividual(item) {
+  if (item.status === 'done' && item.outputUrl) {
+    const a = document.createElement('a');
+    a.href = item.outputUrl;
+    a.download = `${item.name}.${item.ext}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } else {
+    window.open(item.url, '_blank');
+  }
+}
+
+async function downloadBulkAll() {
+  const pendingItems = bulkQueue.filter(item => item.status === 'pending');
+  if (pendingItems.length === 0 || isBulkDownloading) return;
+
+  isBulkDownloading = true;
+  bulkConvertBtn.disabled = true;
+  bulkClearQueueBtn.disabled = true;
+  bulkDownloadAllBtn.disabled = true;
+  
+  bulkNamePrefix.disabled = true;
+  bulkExtensionFallback.disabled = true;
+  bulkPasteArea.disabled = true;
+  bulkClearTextBtn.disabled = true;
+  bulkExtractBtn.disabled = true;
+
+  bulkMasterStatus.textContent = 'Downloading images...';
+  bulkMasterStatus.classList.add('pulse');
+
+  for (let i = 0; i < pendingItems.length; i++) {
+    const item = pendingItems[i];
+    item.status = 'converting';
+    item.progress = 20;
+    updateFileCardUI(item, bulkQueueGrid);
+
+    try {
+      const response = await fetch(item.url, {
+        mode: 'cors'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      item.progress = 60;
+      updateFileCardUI(item, bulkQueueGrid);
+      
+      const blob = await response.blob();
+      item.progress = 100;
+      item.status = 'done';
+      item.outputBlob = blob;
+      item.size = blob.size; 
+      item.outputUrl = URL.createObjectURL(blob);
+    } catch (err) {
+      console.error('Download error for URL:', item.url, err);
+      item.status = 'error';
+      if (err.message.includes('Failed to fetch') || err.message === 'TypeError: Failed to fetch') {
+        item.errorMessage = 'CORS restriction or network offline. Click card to open in new tab.';
+      } else {
+        item.errorMessage = err.message || 'Download failed';
+      }
+    }
+
+    updateFileCardUI(item, bulkQueueGrid);
+    updateBulkMasterProgress();
+  }
+
+  isBulkDownloading = false;
+  bulkClearQueueBtn.disabled = false;
+  bulkConvertBtn.disabled = !bulkQueue.some(item => item.status === 'pending');
+  
+  bulkNamePrefix.disabled = false;
+  bulkExtensionFallback.disabled = false;
+  bulkPasteArea.disabled = false;
+  bulkClearTextBtn.disabled = false;
+  bulkExtractBtn.disabled = false;
+
+  bulkMasterStatus.classList.remove('pulse');
+  
+  const successCount = bulkQueue.filter(item => item.status === 'done').length;
+  const failCount = bulkQueue.filter(item => item.status === 'error').length;
+  
+  if (failCount === 0) {
+    bulkMasterStatus.textContent = `Successfully downloaded ${successCount} image${successCount > 1 ? 's' : ''}!`;
+  } else {
+    bulkMasterStatus.textContent = `Completed: ${successCount} downloaded, ${failCount} failed.`;
+  }
+  
+  updateBulkMasterProgress();
+}
+
+async function packageBulkZip() {
+  const successItems = bulkQueue.filter(item => item.status === 'done' && item.outputBlob);
+  if (successItems.length === 0) return;
+
+  if (successItems.length === 1) {
+    downloadBulkIndividual(successItems[0]);
+    return;
+  }
+
+  const originalText = bulkMasterStatus.textContent;
+  bulkMasterStatus.textContent = 'Generating ZIP archive...';
+  bulkMasterStatus.classList.add('pulse');
+  bulkDownloadAllBtn.disabled = true;
+
+  try {
+    const zipBlob = await createZip(successItems);
+    const zipUrl = URL.createObjectURL(zipBlob);
+
+    const a = document.createElement('a');
+    a.href = zipUrl;
+    a.download = 'ImgConvert-Downloaded-Pack.zip';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    
+    setTimeout(() => URL.revokeObjectURL(zipUrl), 1000);
+    bulkMasterStatus.textContent = 'ZIP download completed!';
+  } catch (err) {
+    console.error(err);
+    alert('Failed to generate ZIP archive: ' + err.message);
+    bulkMasterStatus.textContent = 'ZIP creation failed.';
+  } finally {
+    bulkMasterStatus.classList.remove('pulse');
+    setTimeout(() => {
+      bulkMasterStatus.textContent = originalText;
+      bulkDownloadAllBtn.disabled = false;
+    }, 3000);
+  }
 }
 
 // ==========================================
@@ -1532,14 +1902,18 @@ function updateFileCardUI(item, gridElement) {
     resultPanel.classList.remove('hidden');
     resultPanel.querySelector('.result-size').textContent = formatBytes(item.outputBlob.size);
     
-    const ratio = ((item.size - item.outputBlob.size) / item.size) * 100;
+    const ratio = item.size ? ((item.size - item.outputBlob.size) / item.size) * 100 : 0;
     const savingsEl = resultPanel.querySelector('.result-savings');
     if (ratio > 0) {
       savingsEl.textContent = `-${ratio.toFixed(0)}%`;
       savingsEl.style.color = '#34d399';
-    } else {
+      savingsEl.classList.remove('hidden');
+    } else if (ratio < 0) {
       savingsEl.textContent = `+${Math.abs(ratio).toFixed(0)}%`;
       savingsEl.style.color = '#f87171';
+      savingsEl.classList.remove('hidden');
+    } else {
+      savingsEl.classList.add('hidden');
     }
 
     downloadBtn.disabled = false;
@@ -1566,6 +1940,10 @@ window.addEventListener('beforeunload', () => {
   geminiQueue.forEach(item => {
     if (item.localThumbUrl) URL.revokeObjectURL(item.localThumbUrl);
     if (item.outputUrl) URL.revokeObjectURL(item.outputUrl);
+  });
+  bulkQueue.forEach(item => {
+    if (item.localThumbUrl && item.localThumbUrl.startsWith('blob:')) URL.revokeObjectURL(item.localThumbUrl);
+    if (item.outputUrl && item.outputUrl.startsWith('blob:')) URL.revokeObjectURL(item.outputUrl);
   });
   if (logoObjectURL) {
     URL.revokeObjectURL(logoObjectURL);

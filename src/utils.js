@@ -338,7 +338,95 @@ function applyLogoFallback(baseFile, logoImageElement, options = {}) {
       img.onerror = () => reject(new Error('Failed to load image file'));
       img.src = event.target.result;
     };
-    reader.onerror = () => reject(new Error('FileReader read error'));
     reader.readAsDataURL(baseFile);
   });
+}
+
+/**
+ * Extract fully qualified image URLs from plain text or HTML
+ */
+export function extractImageUrls(text) {
+  if (!text || typeof text !== 'string') return [];
+  const urls = new Set();
+  
+  // 1. Try DOM Parsing if it looks like HTML
+  if (text.includes('<') && text.includes('>')) {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(text, 'text/html');
+      const elements = doc.querySelectorAll('img, a, [style*="background-image"]');
+      
+      elements.forEach(el => {
+        if (el.tagName === 'IMG') {
+          // Check typical attributes used for images
+          const srcAttrs = ['src', 'data-src', 'data-original', 'original', 'srcset', 'data-lazy-src'];
+          srcAttrs.forEach(attr => {
+            const val = el.getAttribute(attr);
+            if (val) {
+              if (attr === 'srcset') {
+                const parts = val.split(',');
+                parts.forEach(part => {
+                  const match = part.trim().match(/^(https?:\/\/[^\s]+)/);
+                  if (match) urls.add(match[1]);
+                });
+              } else {
+                if (val.startsWith('http://') || val.startsWith('https://')) {
+                  urls.add(val);
+                } else if (val.startsWith('//')) {
+                  urls.add('https:' + val);
+                }
+              }
+            }
+          });
+        } else if (el.tagName === 'A') {
+          const href = el.getAttribute('href');
+          if (href && (href.startsWith('http') || href.startsWith('//'))) {
+            if (/\.(jpg|jpeg|png|webp|gif|bmp)(?:\?.*)?$/i.test(href) || href.includes('susercontent.com/file/') || href.includes('shopee.com/file/')) {
+              urls.add(href.startsWith('//') ? 'https:' + href : href);
+            }
+          }
+        } else {
+          const bg = el.style.backgroundImage;
+          if (bg) {
+            const match = bg.match(/url\(['"]?(https?:\/\/[^'"]+)['"]?\)/);
+            if (match) urls.add(match[1]);
+          }
+        }
+      });
+    } catch (e) {
+      console.warn('DOMParser failed, falling back to regex', e);
+    }
+  }
+
+  // 2. Regex fallback/supplement to capture URLs
+  const standardRegex = /https?:\/\/[^\s"']+\.(?:jpg|jpeg|png|webp|gif|bmp)(?:\?[^\s"']*)?/gi;
+  let match;
+  while ((match = standardRegex.exec(text)) !== null) {
+    urls.add(match[0]);
+  }
+
+  const shopeeRegex = /https?:\/\/(?:[a-zA-Z0-9-]+\.)*(?:susercontent\.com|shopee\.[a-z.]+)\/file\/[a-zA-Z0-9_-]+/gi;
+  while ((match = shopeeRegex.exec(text)) !== null) {
+    urls.add(match[0]);
+  }
+
+  const generalUrlRegex = /https?:\/\/[^\s"']+/gi;
+  while ((match = generalUrlRegex.exec(text)) !== null) {
+    const url = match[0];
+    if (/\.(jpg|jpeg|png|webp|gif|bmp)/i.test(url) || url.includes('/file/') || url.includes('image')) {
+      urls.add(url);
+    }
+  }
+
+  // Clean URLs (remove wrapping parenthesis or quotes from regex matches if any)
+  const cleanUrls = Array.from(urls).map(url => {
+    let u = url.trim();
+    if (u.endsWith(')')) u = u.slice(0, -1);
+    if (u.endsWith('"') || u.endsWith("'")) u = u.slice(0, -1);
+    return u;
+  }).filter(url => {
+    return url.startsWith('http://') || url.startsWith('https://');
+  });
+
+  return Array.from(new Set(cleanUrls));
 }

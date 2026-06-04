@@ -10,9 +10,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- Stylesheets -->
-  <script type="module" crossorigin src="/assets/index-CdZYk95W.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-XE7IFM7k.css">
+  <!-- Stylesheets -->
+  <script type="module" crossorigin src="/assets/index-DURz0cLv.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-BsALbK_y.css">
 </head>
 <body>
   <div class="app-container">
@@ -51,6 +51,11 @@
         <a href="#" class="nav-item" data-tab="crop-image">
           <i data-lucide="crop"></i>
           <span>Crop Image</span>
+          <span class="badge badge-active">New</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="bulk-download">
+          <i data-lucide="download-cloud"></i>
+          <span>Bulk Downloader</span>
           <span class="badge badge-active">New</span>
         </a>
         <a href="#" class="nav-item disabled" data-tab="compress">
@@ -536,6 +541,109 @@
         </div>
       </div>
 
+      <!-- Panel 5: Bulk Downloader -->
+      <div class="tab-panel hidden" id="panel-bulk-download">
+        <header class="workspace-header">
+          <div class="header-title">
+            <h2>Bulk Image Downloader</h2>
+            <p>Paste HTML or text containing image URLs to extract and download them as a ZIP file.</p>
+          </div>
+        </header>
+
+        <div class="workspace-content">
+          <!-- Textarea / Input zone -->
+          <div class="options-card">
+            <div class="options-header">
+              <i data-lucide="clipboard"></i>
+              <h3>Paste Content</h3>
+            </div>
+            <div class="option-group">
+              <textarea id="bulk-pasteArea" class="textarea-input" placeholder="Paste HTML, Shopee page source, text, or list of image URLs here..." rows="8"></textarea>
+              <p class="option-desc">We will automatically scan and extract all image URLs (including Shopee CDN URLs).</p>
+            </div>
+            <div class="options-flex-row" style="display: flex; gap: 12px; margin-top: 16px; justify-content: flex-end;">
+              <button class="btn btn-outline" id="bulk-clearTextBtn">
+                <i data-lucide="trash-2"></i>
+                <span>Clear Text</span>
+              </button>
+              <button class="btn btn-primary" id="bulk-extractBtn">
+                <i data-lucide="scan"></i>
+                <span>Extract URLs</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Options Card -->
+          <div class="options-card panel-hidden" id="bulk-optionsPanel">
+            <div class="options-header">
+              <i data-lucide="sliders"></i>
+              <h3>Download Settings</h3>
+            </div>
+            <div class="options-grid">
+              <div class="option-group">
+                <label for="bulk-namePrefix">File Naming Template</label>
+                <input type="text" id="bulk-namePrefix" class="text-input-field" value="image_{n}">
+                <p class="option-desc">Use <code>{n}</code> for sequential numbering (e.g. <code>image_1</code>, <code>image_2</code>).</p>
+              </div>
+              <div class="option-group">
+                <label for="bulk-extensionFallback">Filename Extension</label>
+                <div class="select-wrapper">
+                  <select id="bulk-extensionFallback" class="select-input">
+                    <option value="original" selected>Keep Original (from URL)</option>
+                    <option value="jpg">Force .jpg</option>
+                    <option value="png">Force .png</option>
+                    <option value="webp">Force .webp</option>
+                  </select>
+                  <i data-lucide="chevron-down" class="select-arrow"></i>
+                </div>
+                <p class="option-desc">Fallback extension to use if the URL doesn't have one.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Queue Section (Hidden until files are added) -->
+          <div class="queue-section panel-hidden" id="bulk-queueSection">
+            <div class="queue-header">
+              <div class="queue-info">
+                <h3>Extracted Images Queue</h3>
+                <span class="queue-stats" id="bulk-queueStats">0 URLs found</span>
+              </div>
+              <div class="queue-actions">
+                <button class="btn btn-outline" id="bulk-clearQueueBtn">
+                  <i data-lucide="trash-2"></i>
+                  <span>Clear Queue</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Queue Grid -->
+            <div class="queue-grid" id="bulk-queueGrid">
+              <!-- File Cards injected here -->
+            </div>
+
+            <!-- Master Control Bar -->
+            <div class="master-bar">
+              <div class="master-progress-container">
+                <div class="master-progress-bar" id="bulk-masterProgressBar" style="width: 0%"></div>
+              </div>
+              <div class="master-bar-inner">
+                <div class="master-status" id="bulk-masterStatus">Ready to download</div>
+                <div class="master-buttons">
+                  <button class="btn btn-primary" id="bulk-convertBtn">
+                    <i data-lucide="play"></i>
+                    <span>Fetch & Package ZIP</span>
+                  </button>
+                  <button class="btn btn-success" id="bulk-downloadAllBtn" disabled>
+                    <i data-lucide="download"></i>
+                    <span>Download All (.zip)</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </main>
   </div>
 
@@ -577,7 +685,7 @@
     </div>
   </template>
 
-  <!-- Main Script -->
+  <!-- Main Script -->
   <script>
     // Initialize Lucide Icons on load
     document.addEventListener("DOMContentLoaded", () => {
