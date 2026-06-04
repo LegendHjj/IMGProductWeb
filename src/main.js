@@ -16,6 +16,11 @@ let logoQueue = [];
 let isLogoConverting = false;
 let logoImageElement = null; // Stored HTMLImageElement once loaded
 let logoObjectURL = null;
+let logoBase64 = null;        // Base64 data URL of current logo (for caching)
+
+// localStorage keys
+const LS_LOGO_B64   = 'imgconv_logo_b64';
+const LS_LOGO_SCALE = 'imgconv_logo_scale';
 
 // Remove Gemini Logo State
 let geminiQueue = [];
@@ -218,11 +223,18 @@ function init() {
   });
 
   // Settings
-  logoPosition.addEventListener('change', resetLogoQueueForReconvert);
+  logoPosition.addEventListener('change', () => {
+    updateLogoOverlayOnCards();
+    resetLogoQueueForReconvert();
+  });
   logoSizeSlider.addEventListener('input', (e) => {
     logoSizeValue.textContent = `${e.target.value}%`;
+    updateLogoOverlayOnCards();
   });
-  logoSizeSlider.addEventListener('change', resetLogoQueueForReconvert);
+  logoSizeSlider.addEventListener('change', () => {
+    localStorage.setItem(LS_LOGO_SCALE, logoSizeSlider.value);
+    resetLogoQueueForReconvert();
+  });
   logoOutFormat.addEventListener('change', (e) => {
     const isPng = e.target.value === 'image/png';
     logoQualityGroup.style.opacity = isPng ? '0.3' : '1';
@@ -233,6 +245,9 @@ function init() {
     logoQualityValue.textContent = `${e.target.value}%`;
   });
   logoQualitySlider.addEventListener('change', resetLogoQueueForReconvert);
+
+  // Restore persisted logo + scale from localStorage
+  loadLogoCache();
 
   // Controls
   logoClearQueueBtn.addEventListener('click', clearLogoQueue);
@@ -750,27 +765,31 @@ function handleWatermarkUpload(e) {
     return;
   }
 
-  // Load logo as Image element
-  const img = new Image();
-  img.onload = () => {
-    logoImageElement = img;
-    logoPreviewImg.src = img.src;
-    logoPreviewName.textContent = file.name;
-    
-    // UI toggle
-    logoUploadPrompt.classList.add('hidden');
-    logoUploadPreview.classList.remove('hidden');
-    
-    resetLogoQueueForReconvert();
-    updateLogoQueueStats();
+  // Convert file to base64 for caching, then load as Image
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const dataUrl = ev.target.result;
+    logoBase64 = dataUrl;
+    localStorage.setItem(LS_LOGO_B64, dataUrl);
+
+    const img = new Image();
+    img.onload = () => {
+      logoImageElement = img;
+      logoPreviewImg.src = img.src;
+      logoPreviewName.textContent = file.name;
+
+      // UI toggle
+      logoUploadPrompt.classList.add('hidden');
+      logoUploadPreview.classList.remove('hidden');
+
+      updateLogoOverlayOnCards();
+      resetLogoQueueForReconvert();
+      updateLogoQueueStats();
+    };
+    img.src = dataUrl;
   };
-  
-  if (logoObjectURL) {
-    URL.revokeObjectURL(logoObjectURL);
-  }
-  logoObjectURL = URL.createObjectURL(file);
-  img.src = logoObjectURL;
-  
+  reader.readAsDataURL(file);
+
   // Clean input file value
   watermarkLogoFile.value = '';
 }
@@ -778,15 +797,19 @@ function handleWatermarkUpload(e) {
 // Remove watermark logo
 function removeWatermarkLogo() {
   logoImageElement = null;
+  logoBase64 = null;
   if (logoObjectURL) {
     URL.revokeObjectURL(logoObjectURL);
     logoObjectURL = null;
   }
-  
+  localStorage.removeItem(LS_LOGO_B64);
+
   logoUploadPrompt.classList.remove('hidden');
   logoUploadPreview.classList.add('hidden');
   logoPreviewImg.src = '';
-  
+
+  // Clear overlays from all cards
+  updateLogoOverlayOnCards();
   resetLogoQueueForReconvert();
   updateLogoQueueStats();
 }
@@ -1844,6 +1867,10 @@ function renderFileCard(item, gridElement, queueArray, removeCallback, downloadC
   img.onload = () => {
     img.classList.remove('hidden');
     placeholder.classList.add('hidden');
+    // Apply logo overlay once base image is measured (logo tab only)
+    if (gridElement === logoQueueGrid) {
+      applyOverlayToCard(card);
+    }
   };
 
   // Card Controls
@@ -1866,6 +1893,100 @@ function renderFileCard(item, gridElement, queueArray, removeCallback, downloadC
     nameAttr: 'data-lucide',
     node: card
   });
+}
+
+// ==========================================
+// LOGO OVERLAY PREVIEW HELPERS
+// ==========================================
+
+/**
+ * Applies (or clears) the watermark overlay img on a single card element.
+ * Sizes the overlay relative to the rendered preview image dimensions.
+ */
+function applyOverlayToCard(card) {
+  const overlayImg = card.querySelector('.watermark-overlay-img');
+  if (!overlayImg) return;
+
+  if (!logoImageElement || !logoBase64) {
+    overlayImg.classList.add('hidden');
+    overlayImg.src = '';
+    return;
+  }
+
+  const baseImg = card.querySelector('.preview-img');
+  const sizePercent = parseInt(logoSizeSlider.value, 10) / 100;
+  const position = logoPosition.value;
+
+  // Width of the logo in the thumbnail = rendered preview width * scale %
+  const previewW = baseImg.offsetWidth || 120;
+  const logoW = Math.round(previewW * sizePercent);
+
+  overlayImg.src = logoBase64;
+  overlayImg.style.width = `${logoW}px`;
+  overlayImg.style.height = 'auto';
+
+  // Reset all corner offsets first
+  overlayImg.style.top    = '';
+  overlayImg.style.bottom = '';
+  overlayImg.style.left   = '';
+  overlayImg.style.right  = '';
+
+  const pad = '4px';
+  switch (position) {
+    case 'top_left':     overlayImg.style.top = pad;    overlayImg.style.left  = pad; break;
+    case 'top_right':    overlayImg.style.top = pad;    overlayImg.style.right = pad; break;
+    case 'bottom_right': overlayImg.style.bottom = pad; overlayImg.style.right = pad; break;
+    case 'bottom_left':
+    default:             overlayImg.style.bottom = pad; overlayImg.style.left  = pad; break;
+  }
+
+  overlayImg.classList.remove('hidden');
+}
+
+/**
+ * Refreshes the watermark overlay on every card in the logo queue grid.
+ * Call whenever logo, size, or position changes.
+ */
+function updateLogoOverlayOnCards() {
+  const cards = logoQueueGrid.querySelectorAll('.file-card');
+  cards.forEach((card) => applyOverlayToCard(card));
+}
+
+// ==========================================
+// LOGO CACHE (localStorage)
+// ==========================================
+
+/** Restores logo image and scale from localStorage on page load. */
+function loadLogoCache() {
+  // Restore scale
+  const savedScale = localStorage.getItem(LS_LOGO_SCALE);
+  if (savedScale !== null) {
+    logoSizeSlider.value = savedScale;
+    logoSizeValue.textContent = `${savedScale}%`;
+  }
+
+  // Restore logo image
+  const savedB64 = localStorage.getItem(LS_LOGO_B64);
+  if (!savedB64) return;
+
+  const img = new Image();
+  img.onload = () => {
+    logoImageElement = img;
+    logoBase64 = savedB64;
+    logoPreviewImg.src = savedB64;
+    logoPreviewName.textContent = 'Cached logo';
+
+    logoUploadPrompt.classList.add('hidden');
+    logoUploadPreview.classList.remove('hidden');
+
+    updateLogoOverlayOnCards();
+    updateLogoQueueStats();
+  };
+  img.onerror = () => {
+    // Cached data is corrupt — drop it
+    localStorage.removeItem(LS_LOGO_B64);
+  };
+  img.src = savedB64;
 }
 
 function updateFileCardUI(item, gridElement) {

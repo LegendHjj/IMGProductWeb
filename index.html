@@ -263,7 +263,12 @@
               <div class="option-group">
                 <div class="option-label-row">
                   <label for="logoSizeSlider">Logo Size Scale</label>
-                  <span class="option-value" id="logoSizeValue">17%</span>
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="option-value" id="logoSizeValue">17%</span>
+                    <button type="button" class="btn-preview-scale" id="logoPreviewScaleBtn">
+                      <i data-lucide="eye"></i> Preview
+                    </button>
+                  </div>
                 </div>
                 <input type="range" id="logoSizeSlider" min="5" max="50" value="17" class="slider">
                 <p class="option-desc">Logo width as a percentage of the product photo width.</p>
@@ -644,6 +649,29 @@
       </div>
 
     </main>
+  </div>
+
+  <!-- Logo Scale Preview Modal -->
+  <div class="logo-preview-modal-overlay" id="logoScalePreviewOverlay">
+    <div class="logo-preview-modal" role="dialog" aria-modal="true" aria-label="Logo Scale Preview">
+      <div class="logo-preview-modal-header">
+        <h3>
+          <i data-lucide="eye"></i>
+          Logo Scale Preview
+        </h3>
+        <button class="btn-modal-close" id="logoScalePreviewCloseBtn" title="Close">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="logo-preview-modal-canvas-wrap" id="logoScalePreviewCanvasWrap">
+        <img class="logo-preview-modal-base-img" id="logoScalePreviewBaseImg" src="" alt="Sample product image" />
+        <img class="logo-preview-modal-logo-img" id="logoScalePreviewLogoImg" src="" alt="Logo watermark" />
+      </div>
+      <div class="logo-preview-modal-info">
+        <span>Scale: <strong id="logoScalePreviewPct">17%</strong> of image width</span>
+        <span id="logoScalePreviewDimNote">—</span>
+      </div>
+    </div>
   </div>
 
   <!-- Template for File Cards -->
