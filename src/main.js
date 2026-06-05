@@ -20,7 +20,11 @@ let logoBase64 = null;        // Base64 data URL of current logo (for caching)
 
 // localStorage keys
 const LS_LOGO_B64   = 'imgconv_logo_b64';
+const LS_LOGO_NAME = 'imgconv_logo_name';
 const LS_LOGO_SCALE = 'imgconv_logo_scale';
+const LS_LOGO_POSITION = 'imgconv_logo_position';
+const LS_LOGO_FORMAT = 'imgconv_logo_format';
+const LS_LOGO_QUALITY = 'imgconv_logo_quality';
 
 // Remove Gemini Logo State
 let geminiQueue = [];
@@ -35,6 +39,12 @@ let isCropDataSyncing = false;
 // Bulk Downloader State
 let bulkQueue = [];
 let isBulkDownloading = false;
+const BULK_FETCH_TIMEOUT_MS = 30000;
+
+// Image Prompt Notes State
+let imagePromptNotes = [];
+let editingPromptId = null;
+const LS_IMAGE_PROMPTS = 'imgconv_image_prompts_v1';
 
 // ==========================================
 // DOM SELECTORS
@@ -141,6 +151,18 @@ const bulkMasterStatus = document.getElementById('bulk-masterStatus');
 const bulkConvertBtn = document.getElementById('bulk-convertBtn');
 const bulkDownloadAllBtn = document.getElementById('bulk-downloadAllBtn');
 
+// Image Prompt Notes Elements
+const promptTitleInput = document.getElementById('prompt-titleInput');
+const promptDescriptionInput = document.getElementById('prompt-descriptionInput');
+const promptFormStatus = document.getElementById('prompt-formStatus');
+const promptClearBtn = document.getElementById('prompt-clearBtn');
+const promptSaveBtn = document.getElementById('prompt-saveBtn');
+const promptExportBtn = document.getElementById('prompt-exportBtn');
+const promptCount = document.getElementById('prompt-count');
+const promptSearchInput = document.getElementById('prompt-searchInput');
+const promptEmptyState = document.getElementById('prompt-emptyState');
+const promptGrid = document.getElementById('prompt-grid');
+
 // Reusable card template
 const fileCardTemplate = document.getElementById('fileCardTemplate');
 
@@ -224,11 +246,13 @@ function init() {
 
   // Settings
   logoPosition.addEventListener('change', () => {
+    localStorage.setItem(LS_LOGO_POSITION, logoPosition.value);
     updateLogoOverlayOnCards();
     resetLogoQueueForReconvert();
   });
   logoSizeSlider.addEventListener('input', (e) => {
     logoSizeValue.textContent = `${e.target.value}%`;
+    localStorage.setItem(LS_LOGO_SCALE, e.target.value);
     updateLogoOverlayOnCards();
   });
   logoSizeSlider.addEventListener('change', () => {
@@ -236,17 +260,20 @@ function init() {
     resetLogoQueueForReconvert();
   });
   logoOutFormat.addEventListener('change', (e) => {
-    const isPng = e.target.value === 'image/png';
-    logoQualityGroup.style.opacity = isPng ? '0.3' : '1';
-    logoQualitySlider.disabled = isPng;
+    localStorage.setItem(LS_LOGO_FORMAT, e.target.value);
+    applyLogoOutputFormatState();
     resetLogoQueueForReconvert();
   });
   logoQualitySlider.addEventListener('input', (e) => {
     logoQualityValue.textContent = `${e.target.value}%`;
+    localStorage.setItem(LS_LOGO_QUALITY, e.target.value);
   });
-  logoQualitySlider.addEventListener('change', resetLogoQueueForReconvert);
+  logoQualitySlider.addEventListener('change', () => {
+    localStorage.setItem(LS_LOGO_QUALITY, logoQualitySlider.value);
+    resetLogoQueueForReconvert();
+  });
 
-  // Restore persisted logo + scale from localStorage
+  // Restore persisted logo + Add Logo settings from localStorage
   loadLogoCache();
 
   // Controls
@@ -322,6 +349,16 @@ function init() {
   bulkClearQueueBtn.addEventListener('click', clearBulkQueue);
   bulkConvertBtn.addEventListener('click', downloadBulkAll);
   bulkDownloadAllBtn.addEventListener('click', packageBulkZip);
+
+  // ----------------------------------------
+  // TAB 6: IMAGE PROMPT NOTES LISTENERS
+  // ----------------------------------------
+  loadImagePromptNotes();
+  renderImagePromptNotes();
+  promptSaveBtn.addEventListener('click', saveImagePromptNote);
+  promptClearBtn.addEventListener('click', clearPromptForm);
+  promptExportBtn.addEventListener('click', exportImagePromptNotes);
+  promptSearchInput.addEventListener('input', renderImagePromptNotes);
 }
 
 // ==========================================
@@ -771,6 +808,7 @@ function handleWatermarkUpload(e) {
     const dataUrl = ev.target.result;
     logoBase64 = dataUrl;
     localStorage.setItem(LS_LOGO_B64, dataUrl);
+    localStorage.setItem(LS_LOGO_NAME, file.name);
 
     const img = new Image();
     img.onload = () => {
@@ -803,6 +841,7 @@ function removeWatermarkLogo() {
     logoObjectURL = null;
   }
   localStorage.removeItem(LS_LOGO_B64);
+  localStorage.removeItem(LS_LOGO_NAME);
 
   logoUploadPrompt.classList.remove('hidden');
   logoUploadPreview.classList.add('hidden');
@@ -1596,6 +1635,72 @@ function getExtensionFromUrl(url, fallback = 'jpg') {
   return fallback;
 }
 
+function getHeaderValue(headers, name) {
+  try {
+    return headers.get(name) || '';
+  } catch (error) {
+    return '';
+  }
+}
+
+function isAllowedBulkContentType(contentType) {
+  if (!contentType) return true;
+  const lowerType = contentType.toLowerCase();
+  return lowerType.startsWith('image/')
+    || lowerType.includes('application/octet-stream')
+    || lowerType.includes('binary/octet-stream');
+}
+
+function getBulkDownloadErrorMessage(error) {
+  const message = error?.message || 'Download failed';
+  const lowerMessage = message.toLowerCase();
+
+  if (lowerMessage.includes('failed to fetch') || lowerMessage.includes('networkerror')) {
+    return 'Browser could not fetch this CDN URL. Open it in a new tab or try again from the source page.';
+  }
+
+  if (lowerMessage.includes('empty')) {
+    return 'The CDN returned an empty file. The URL may be expired, protected, or malformed.';
+  }
+
+  return message;
+}
+
+async function fetchBulkImageBlob(url) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), BULK_FETCH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      mode: 'cors',
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const contentType = getHeaderValue(response.headers, 'content-type');
+    if (!isAllowedBulkContentType(contentType)) {
+      throw new Error(`Expected an image, but received ${contentType}`);
+    }
+
+    const blob = await response.blob();
+    if (!blob || blob.size === 0) {
+      const length = getHeaderValue(response.headers, 'content-length');
+      throw new Error(length === '0'
+        ? 'The server returned an empty image file'
+        : 'Downloaded image data is empty');
+    }
+
+    return blob;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
 function updateBulkItemNames() {
   const nameTemplate = bulkNamePrefix.value || 'image_{n}';
   const extFallback = bulkExtensionFallback.value;
@@ -1752,18 +1857,10 @@ async function downloadBulkAll() {
     updateFileCardUI(item, bulkQueueGrid);
 
     try {
-      const response = await fetch(item.url, {
-        mode: 'cors'
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
+      const blob = await fetchBulkImageBlob(item.url);
       item.progress = 60;
       updateFileCardUI(item, bulkQueueGrid);
       
-      const blob = await response.blob();
       item.progress = 100;
       item.status = 'done';
       item.outputBlob = blob;
@@ -1772,11 +1869,7 @@ async function downloadBulkAll() {
     } catch (err) {
       console.error('Download error for URL:', item.url, err);
       item.status = 'error';
-      if (err.message.includes('Failed to fetch') || err.message === 'TypeError: Failed to fetch') {
-        item.errorMessage = 'CORS restriction or network offline. Click card to open in new tab.';
-      } else {
-        item.errorMessage = err.message || 'Download failed';
-      }
+      item.errorMessage = getBulkDownloadErrorMessage(err);
     }
 
     updateFileCardUI(item, bulkQueueGrid);
@@ -1845,6 +1938,282 @@ async function packageBulkZip() {
       bulkDownloadAllBtn.disabled = false;
     }, 3000);
   }
+}
+
+// ==========================================
+// TAB 6: IMAGE PROMPT NOTES PROCESSORS
+// ==========================================
+function createPromptId() {
+  if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+    return window.crypto.randomUUID();
+  }
+  return `prompt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+}
+
+function normalizePromptNote(rawNote) {
+  if (!rawNote || typeof rawNote !== 'object') return null;
+
+  const description = typeof rawNote.description === 'string'
+    ? rawNote.description
+    : (typeof rawNote.prompt === 'string' ? rawNote.prompt : '');
+
+  if (!description.trim()) return null;
+
+  const now = new Date().toISOString();
+  return {
+    id: typeof rawNote.id === 'string' && rawNote.id ? rawNote.id : createPromptId(),
+    title: typeof rawNote.title === 'string' && rawNote.title.trim()
+      ? rawNote.title.trim()
+      : 'Untitled prompt',
+    description: description.trim(),
+    createdAt: typeof rawNote.createdAt === 'string' ? rawNote.createdAt : now,
+    updatedAt: typeof rawNote.updatedAt === 'string' ? rawNote.updatedAt : now
+  };
+}
+
+function loadImagePromptNotes() {
+  try {
+    const stored = localStorage.getItem(LS_IMAGE_PROMPTS);
+    const parsed = stored ? JSON.parse(stored) : [];
+    imagePromptNotes = Array.isArray(parsed)
+      ? parsed.map(normalizePromptNote).filter(Boolean)
+      : [];
+  } catch (error) {
+    console.warn('Failed to load image prompt notes:', error);
+    imagePromptNotes = [];
+    promptFormStatus.textContent = 'Prompt storage could not be read. Starting with an empty list.';
+  }
+}
+
+function persistImagePromptNotes() {
+  localStorage.setItem(LS_IMAGE_PROMPTS, JSON.stringify(imagePromptNotes));
+}
+
+function getFilteredPromptNotes() {
+  const query = promptSearchInput.value.trim().toLowerCase();
+  if (!query) return imagePromptNotes;
+
+  return imagePromptNotes.filter((note) => {
+    return note.title.toLowerCase().includes(query)
+      || note.description.toLowerCase().includes(query);
+  });
+}
+
+function formatPromptDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Saved locally';
+
+  return date.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function updatePromptCount() {
+  const total = imagePromptNotes.length;
+  const visible = getFilteredPromptNotes().length;
+  promptCount.textContent = promptSearchInput.value.trim()
+    ? `${visible} of ${total} prompt${total === 1 ? '' : 's'} shown`
+    : `${total} prompt${total === 1 ? '' : 's'} saved`;
+  promptExportBtn.disabled = total === 0;
+}
+
+function renderImagePromptNotes() {
+  promptGrid.innerHTML = '';
+  const filteredNotes = getFilteredPromptNotes();
+
+  updatePromptCount();
+  promptEmptyState.classList.toggle('hidden', filteredNotes.length > 0);
+
+  filteredNotes.forEach((note) => {
+    const card = document.createElement('article');
+    card.className = 'prompt-card';
+    card.dataset.id = note.id;
+
+    const header = document.createElement('div');
+    header.className = 'prompt-card-header';
+
+    const titleWrap = document.createElement('div');
+    titleWrap.className = 'prompt-card-title-wrap';
+
+    const title = document.createElement('h4');
+    title.textContent = note.title;
+    title.title = note.title;
+
+    const meta = document.createElement('span');
+    meta.className = 'prompt-card-meta';
+    meta.textContent = `Updated ${formatPromptDate(note.updatedAt)}`;
+
+    titleWrap.append(title, meta);
+
+    const actions = document.createElement('div');
+    actions.className = 'prompt-card-actions';
+
+    const copyBtn = createPromptIconButton('copy', 'Copy prompt', () => copyImagePromptNote(note.id));
+    const editBtn = createPromptIconButton('square-pen', 'Edit prompt', () => editImagePromptNote(note.id));
+    const deleteBtn = createPromptIconButton('trash-2', 'Delete prompt', () => deleteImagePromptNote(note.id), 'danger');
+
+    actions.append(copyBtn, editBtn, deleteBtn);
+    header.append(titleWrap, actions);
+
+    const body = document.createElement('p');
+    body.className = 'prompt-card-description';
+    body.textContent = note.description;
+
+    card.append(header, body);
+    promptGrid.appendChild(card);
+  });
+
+  lucide.createIcons({
+    attrs: { class: 'lucide' },
+    nameAttr: 'data-lucide',
+    node: promptGrid
+  });
+}
+
+function createPromptIconButton(iconName, title, onClick, variant = '') {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = variant ? `prompt-icon-btn ${variant}` : 'prompt-icon-btn';
+  button.title = title;
+  button.setAttribute('aria-label', title);
+  button.innerHTML = `<i data-lucide="${iconName}"></i>`;
+  button.addEventListener('click', onClick);
+  return button;
+}
+
+function saveImagePromptNote() {
+  const title = promptTitleInput.value.trim() || 'Untitled prompt';
+  const description = promptDescriptionInput.value.trim();
+
+  if (!description) {
+    promptFormStatus.textContent = 'Please paste a prompt description before saving.';
+    promptDescriptionInput.focus();
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const existingIndex = imagePromptNotes.findIndex(note => note.id === editingPromptId);
+
+  if (existingIndex !== -1) {
+    imagePromptNotes[existingIndex] = {
+      ...imagePromptNotes[existingIndex],
+      title,
+      description,
+      updatedAt: now
+    };
+    promptFormStatus.textContent = 'Prompt updated and saved locally.';
+  } else {
+    imagePromptNotes.unshift({
+      id: createPromptId(),
+      title,
+      description,
+      createdAt: now,
+      updatedAt: now
+    });
+    promptFormStatus.textContent = 'Prompt saved locally.';
+  }
+
+  persistImagePromptNotes();
+  clearPromptForm({ keepStatus: true });
+  renderImagePromptNotes();
+}
+
+function clearPromptForm(options = {}) {
+  editingPromptId = null;
+  promptTitleInput.value = '';
+  promptDescriptionInput.value = '';
+  promptSaveBtn.querySelector('span').textContent = 'Save Prompt';
+
+  if (!options.keepStatus) {
+    promptFormStatus.textContent = 'Ready to save your next prompt.';
+  }
+}
+
+function editImagePromptNote(id) {
+  const note = imagePromptNotes.find(item => item.id === id);
+  if (!note) return;
+
+  editingPromptId = id;
+  promptTitleInput.value = note.title;
+  promptDescriptionInput.value = note.description;
+  promptSaveBtn.querySelector('span').textContent = 'Update Prompt';
+  promptFormStatus.textContent = 'Editing saved prompt. Update when ready.';
+  promptTitleInput.focus();
+}
+
+async function copyImagePromptNote(id) {
+  const note = imagePromptNotes.find(item => item.id === id);
+  if (!note) return;
+
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(note.description);
+    } else {
+      copyTextWithFallback(note.description);
+    }
+    promptFormStatus.textContent = `Copied "${note.title}" prompt.`;
+  } catch (error) {
+    console.error('Copy prompt failed:', error);
+    copyTextWithFallback(note.description);
+    promptFormStatus.textContent = `Copied "${note.title}" prompt.`;
+  }
+}
+
+function copyTextWithFallback(text) {
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  document.body.removeChild(textarea);
+}
+
+function deleteImagePromptNote(id) {
+  const note = imagePromptNotes.find(item => item.id === id);
+  if (!note) return;
+
+  const confirmed = window.confirm(`Delete "${note.title}"?`);
+  if (!confirmed) return;
+
+  imagePromptNotes = imagePromptNotes.filter(item => item.id !== id);
+  if (editingPromptId === id) clearPromptForm();
+
+  persistImagePromptNotes();
+  renderImagePromptNotes();
+  promptFormStatus.textContent = 'Prompt deleted.';
+}
+
+function exportImagePromptNotes() {
+  if (imagePromptNotes.length === 0) return;
+
+  const exportPayload = {
+    app: 'ImgConvert Pro',
+    type: 'image-prompt-notes',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    prompts: imagePromptNotes
+  };
+
+  const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const dateStamp = new Date().toISOString().slice(0, 10);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `imgconvert-image-prompts-${dateStamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  promptFormStatus.textContent = 'Prompt library exported as JSON.';
 }
 
 // ==========================================
@@ -1956,25 +2325,51 @@ function updateLogoOverlayOnCards() {
 // LOGO CACHE (localStorage)
 // ==========================================
 
-/** Restores logo image and scale from localStorage on page load. */
-function loadLogoCache() {
-  // Restore scale
-  const savedScale = localStorage.getItem(LS_LOGO_SCALE);
-  if (savedScale !== null) {
-    logoSizeSlider.value = savedScale;
-    logoSizeValue.textContent = `${savedScale}%`;
+function applyLogoOutputFormatState() {
+  const isPng = logoOutFormat.value === 'image/png';
+  logoQualityGroup.style.opacity = isPng ? '0.3' : '1';
+  logoQualitySlider.disabled = isPng;
+}
+
+function restoreSelectValue(selectElement, savedValue) {
+  if (!savedValue) return;
+  const hasOption = Array.from(selectElement.options).some(option => option.value === savedValue);
+  if (hasOption) {
+    selectElement.value = savedValue;
   }
+}
+
+function restoreRangeValue(rangeElement, displayElement, savedValue, suffix = '') {
+  if (savedValue === null) return;
+
+  const min = Number(rangeElement.min);
+  const max = Number(rangeElement.max);
+  const value = Number(savedValue);
+  if (!Number.isFinite(value) || value < min || value > max) return;
+
+  rangeElement.value = String(value);
+  displayElement.textContent = `${value}${suffix}`;
+}
+
+/** Restores logo image and Add Logo settings from localStorage on page load. */
+function loadLogoCache() {
+  restoreRangeValue(logoSizeSlider, logoSizeValue, localStorage.getItem(LS_LOGO_SCALE), '%');
+  restoreRangeValue(logoQualitySlider, logoQualityValue, localStorage.getItem(LS_LOGO_QUALITY), '%');
+  restoreSelectValue(logoPosition, localStorage.getItem(LS_LOGO_POSITION));
+  restoreSelectValue(logoOutFormat, localStorage.getItem(LS_LOGO_FORMAT));
+  applyLogoOutputFormatState();
 
   // Restore logo image
   const savedB64 = localStorage.getItem(LS_LOGO_B64);
   if (!savedB64) return;
+  const savedName = localStorage.getItem(LS_LOGO_NAME) || 'Cached logo';
 
   const img = new Image();
   img.onload = () => {
     logoImageElement = img;
     logoBase64 = savedB64;
     logoPreviewImg.src = savedB64;
-    logoPreviewName.textContent = 'Cached logo';
+    logoPreviewName.textContent = savedName;
 
     logoUploadPrompt.classList.add('hidden');
     logoUploadPreview.classList.remove('hidden');
@@ -1985,6 +2380,7 @@ function loadLogoCache() {
   img.onerror = () => {
     // Cached data is corrupt — drop it
     localStorage.removeItem(LS_LOGO_B64);
+    localStorage.removeItem(LS_LOGO_NAME);
   };
   img.src = savedB64;
 }
@@ -1994,12 +2390,16 @@ function updateFileCardUI(item, gridElement) {
   if (!card) return;
 
   const badge = card.querySelector('.file-badge');
+  const fileSize = card.querySelector('.file-size');
   const progressContainer = card.querySelector('.card-progress-bar-container');
   const progressBar = card.querySelector('.card-progress-bar');
   const resultPanel = card.querySelector('.conversion-result');
   const downloadBtn = card.querySelector('.btn-card-download');
 
   badge.className = 'file-badge';
+  if (fileSize) {
+    fileSize.textContent = formatBytes(item.size || item.outputBlob?.size || 0);
+  }
   
   if (item.status === 'pending') {
     badge.textContent = 'Pending';

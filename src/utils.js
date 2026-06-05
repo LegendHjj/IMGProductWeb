@@ -342,6 +342,63 @@ function applyLogoFallback(baseFile, logoImageElement, options = {}) {
   });
 }
 
+function decodeHtmlEntities(value) {
+  if (!value || !/[&<]/.test(value)) return value;
+
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(value, 'text/html');
+    return doc.documentElement.textContent || value;
+  } catch (error) {
+    return value;
+  }
+}
+
+function normalizeExtractedImageUrl(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== 'string') return null;
+
+  let url = rawUrl.trim();
+  const encodedQuoteIndex = url.search(/&(quot|apos|lt|gt|#34|#39);/i);
+  if (encodedQuoteIndex !== -1) {
+    url = url.slice(0, encodedQuoteIndex);
+  }
+
+  url = decodeHtmlEntities(url)
+    .trim()
+    .replace(/^[<("'`]+/, '')
+    .replace(/[>)"'`,;]+$/g, '')
+    .replace(/%(22|27|3C|3E)$/i, '');
+
+  if (url.startsWith('//')) {
+    url = `https:${url}`;
+  }
+
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    return null;
+  }
+
+  try {
+    return new URL(url).href;
+  } catch (error) {
+    return null;
+  }
+}
+
+function isLikelyImageUrl(url) {
+  return /\.(jpg|jpeg|png|webp|gif|bmp)(?:[?#].*)?$/i.test(url)
+    || url.includes('susercontent.com/file/')
+    || url.includes('shopee.com/file/')
+    || url.includes('/img/')
+    || url.includes('/image');
+}
+
+function addImageUrl(urls, candidate) {
+  const normalizedUrl = normalizeExtractedImageUrl(candidate);
+  if (normalizedUrl && isLikelyImageUrl(normalizedUrl)) {
+    urls.add(normalizedUrl);
+  }
+}
+
 /**
  * Extract fully qualified image URLs from plain text or HTML
  */
@@ -366,30 +423,22 @@ export function extractImageUrls(text) {
               if (attr === 'srcset') {
                 const parts = val.split(',');
                 parts.forEach(part => {
-                  const match = part.trim().match(/^(https?:\/\/[^\s]+)/);
-                  if (match) urls.add(match[1]);
+                  const match = part.trim().match(/^((?:https?:)?\/\/[^\s]+)/);
+                  if (match) addImageUrl(urls, match[1]);
                 });
               } else {
-                if (val.startsWith('http://') || val.startsWith('https://')) {
-                  urls.add(val);
-                } else if (val.startsWith('//')) {
-                  urls.add('https:' + val);
-                }
+                addImageUrl(urls, val);
               }
             }
           });
         } else if (el.tagName === 'A') {
           const href = el.getAttribute('href');
-          if (href && (href.startsWith('http') || href.startsWith('//'))) {
-            if (/\.(jpg|jpeg|png|webp|gif|bmp)(?:\?.*)?$/i.test(href) || href.includes('susercontent.com/file/') || href.includes('shopee.com/file/')) {
-              urls.add(href.startsWith('//') ? 'https:' + href : href);
-            }
-          }
+          addImageUrl(urls, href);
         } else {
           const bg = el.style.backgroundImage;
           if (bg) {
-            const match = bg.match(/url\(['"]?(https?:\/\/[^'"]+)['"]?\)/);
-            if (match) urls.add(match[1]);
+            const match = bg.match(/url\(['"]?((?:https?:)?\/\/[^'"]+)['"]?\)/);
+            if (match) addImageUrl(urls, match[1]);
           }
         }
       });
@@ -402,31 +451,18 @@ export function extractImageUrls(text) {
   const standardRegex = /https?:\/\/[^\s"']+\.(?:jpg|jpeg|png|webp|gif|bmp)(?:\?[^\s"']*)?/gi;
   let match;
   while ((match = standardRegex.exec(text)) !== null) {
-    urls.add(match[0]);
+    addImageUrl(urls, match[0]);
   }
 
   const shopeeRegex = /https?:\/\/(?:[a-zA-Z0-9-]+\.)*(?:susercontent\.com|shopee\.[a-z.]+)\/file\/[a-zA-Z0-9_-]+/gi;
   while ((match = shopeeRegex.exec(text)) !== null) {
-    urls.add(match[0]);
+    addImageUrl(urls, match[0]);
   }
 
   const generalUrlRegex = /https?:\/\/[^\s"']+/gi;
   while ((match = generalUrlRegex.exec(text)) !== null) {
-    const url = match[0];
-    if (/\.(jpg|jpeg|png|webp|gif|bmp)/i.test(url) || url.includes('/file/') || url.includes('image')) {
-      urls.add(url);
-    }
+    addImageUrl(urls, match[0]);
   }
 
-  // Clean URLs (remove wrapping parenthesis or quotes from regex matches if any)
-  const cleanUrls = Array.from(urls).map(url => {
-    let u = url.trim();
-    if (u.endsWith(')')) u = u.slice(0, -1);
-    if (u.endsWith('"') || u.endsWith("'")) u = u.slice(0, -1);
-    return u;
-  }).filter(url => {
-    return url.startsWith('http://') || url.startsWith('https://');
-  });
-
-  return Array.from(new Set(cleanUrls));
+  return Array.from(urls);
 }

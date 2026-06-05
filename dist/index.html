@@ -11,8 +11,8 @@
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Stylesheets -->
-  <script type="module" crossorigin src="/assets/index-DURz0cLv.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-BsALbK_y.css">
+  <script type="module" crossorigin src="/IMGProductWeb/assets/index-DvA6U4dU.js"></script>
+  <link rel="stylesheet" crossorigin href="/IMGProductWeb/assets/index-CSMD9cW4.css">
 </head>
 <body>
   <div class="app-container">
@@ -56,6 +56,11 @@
         <a href="#" class="nav-item" data-tab="bulk-download">
           <i data-lucide="download-cloud"></i>
           <span>Bulk Downloader</span>
+          <span class="badge badge-active">New</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="prompt-notes">
+          <i data-lucide="notebook-tabs"></i>
+          <span>Prompt Notes</span>
           <span class="badge badge-active">New</span>
         </a>
         <a href="#" class="nav-item disabled" data-tab="compress">
@@ -264,7 +269,12 @@
               <div class="option-group">
                 <div class="option-label-row">
                   <label for="logoSizeSlider">Logo Size Scale</label>
-                  <span class="option-value" id="logoSizeValue">17%</span>
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="option-value" id="logoSizeValue">17%</span>
+                    <button type="button" class="btn-preview-scale" id="logoPreviewScaleBtn">
+                      <i data-lucide="eye"></i> Preview
+                    </button>
+                  </div>
                 </div>
                 <input type="range" id="logoSizeSlider" min="5" max="50" value="17" class="slider">
                 <p class="option-desc">Logo width as a percentage of the product photo width.</p>
@@ -644,7 +654,99 @@
         </div>
       </div>
 
+      <!-- Panel 6: Image Prompt Notes -->
+      <div class="tab-panel hidden" id="panel-prompt-notes">
+        <header class="workspace-header">
+          <div class="header-title">
+            <h2>Image Prompt Notes</h2>
+            <p>Save reusable AI image prompts locally, then copy or export them anytime.</p>
+          </div>
+        </header>
+
+        <div class="workspace-content prompt-notes-workspace">
+          <section class="prompt-notes-layout">
+            <div class="options-card prompt-editor-card">
+              <div class="options-header">
+                <i data-lucide="square-pen"></i>
+                <h3>Prompt Entry</h3>
+              </div>
+              <div class="option-group">
+                <label for="prompt-titleInput">Title</label>
+                <input type="text" id="prompt-titleInput" class="text-input-field" placeholder="e.g. Clean white product hero">
+              </div>
+              <div class="option-group">
+                <label for="prompt-descriptionInput">Prompt Description</label>
+                <textarea id="prompt-descriptionInput" class="textarea-input prompt-description-input" placeholder="Paste the full Gemini or ChatGPT image prompt here..." rows="12"></textarea>
+                <p class="option-desc">Stored in this browser only. Use export JSON before moving computer or clearing browser data.</p>
+              </div>
+              <div class="prompt-form-status" id="prompt-formStatus">Ready to save your next prompt.</div>
+              <div class="prompt-form-actions">
+                <button class="btn btn-outline" id="prompt-clearBtn">
+                  <i data-lucide="eraser"></i>
+                  <span>Clear</span>
+                </button>
+                <button class="btn btn-primary" id="prompt-saveBtn">
+                  <i data-lucide="save"></i>
+                  <span>Save Prompt</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="prompt-library-panel">
+              <div class="queue-header prompt-library-header">
+                <div class="queue-info">
+                  <h3>Saved Prompts</h3>
+                  <span class="queue-stats" id="prompt-count">0 prompts saved</span>
+                </div>
+                <div class="queue-actions">
+                  <button class="btn btn-success" id="prompt-exportBtn" disabled>
+                    <i data-lucide="file-down"></i>
+                    <span>Export JSON</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="prompt-search-row">
+                <i data-lucide="search"></i>
+                <input type="search" id="prompt-searchInput" class="text-input-field" placeholder="Search prompt title or wording...">
+              </div>
+
+              <div class="prompt-empty-state" id="prompt-emptyState">
+                <i data-lucide="notebook-tabs"></i>
+                <h3>No prompts saved yet</h3>
+                <p>Add your first image prompt on the left, then it will auto-load here next time.</p>
+              </div>
+
+              <div class="prompt-grid" id="prompt-grid"></div>
+            </div>
+          </section>
+        </div>
+      </div>
+
     </main>
+  </div>
+
+  <!-- Logo Scale Preview Modal -->
+  <div class="logo-preview-modal-overlay" id="logoScalePreviewOverlay">
+    <div class="logo-preview-modal" role="dialog" aria-modal="true" aria-label="Logo Scale Preview">
+      <div class="logo-preview-modal-header">
+        <h3>
+          <i data-lucide="eye"></i>
+          Logo Scale Preview
+        </h3>
+        <button class="btn-modal-close" id="logoScalePreviewCloseBtn" title="Close">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="logo-preview-modal-canvas-wrap" id="logoScalePreviewCanvasWrap">
+        <img class="logo-preview-modal-base-img" id="logoScalePreviewBaseImg" src="" alt="Sample product image" />
+        <img class="logo-preview-modal-logo-img" id="logoScalePreviewLogoImg" src="" alt="Logo watermark" />
+      </div>
+      <div class="logo-preview-modal-info">
+        <span>Scale: <strong id="logoScalePreviewPct">17%</strong> of image width</span>
+        <span id="logoScalePreviewDimNote">—</span>
+      </div>
+    </div>
   </div>
 
   <!-- Template for File Cards -->
