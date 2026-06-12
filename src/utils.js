@@ -466,3 +466,83 @@ export function extractImageUrls(text) {
 
   return Array.from(urls);
 }
+
+/**
+ * Combine multiple images vertically (top to bottom)
+ * with optional crop boundaries for each image.
+ */
+export async function combineImagesVertically(items) {
+  // Decode all images and their cropped dimensions
+  const decodedItems = [];
+  let totalHeight = 0;
+  let maxWidth = 0;
+
+  for (const item of items) {
+    let bitmap;
+    try {
+      bitmap = await createImageBitmap(item.file);
+    } catch (e) {
+      // Fallback if createImageBitmap fails
+      bitmap = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('Failed to decode image'));
+        img.src = URL.createObjectURL(item.file);
+      });
+    }
+
+    const crop = item.cropData || { x: 0, y: 0, width: bitmap.width || bitmap.naturalWidth, height: bitmap.height || bitmap.naturalHeight };
+    
+    decodedItems.push({
+      bitmap,
+      crop
+    });
+    
+    totalHeight += crop.height;
+    maxWidth = Math.max(maxWidth, crop.width);
+  }
+
+  if (decodedItems.length === 0) {
+    throw new Error('No images provided for combination');
+  }
+
+  // Create final canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = maxWidth;
+  canvas.height = totalHeight;
+  const ctx = canvas.getContext('2d');
+  
+  if (!ctx) {
+    throw new Error('Canvas 2D context unavailable');
+  }
+
+  // White background (in case of transparency or different widths)
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Draw images
+  let currentY = 0;
+  for (const data of decodedItems) {
+    // Center horizontally if widths differ
+    const xOffset = (maxWidth - data.crop.width) / 2;
+    
+    ctx.drawImage(
+      data.bitmap,
+      data.crop.x, data.crop.y, data.crop.width, data.crop.height, // Source crop
+      xOffset, currentY, data.crop.width, data.crop.height        // Destination
+    );
+    
+    currentY += data.crop.height;
+    
+    if (data.bitmap.close) {
+      data.bitmap.close(); // Free memory if it's an ImageBitmap
+    }
+  }
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error('Failed to generate combined image blob'));
+    }, 'image/jpeg', 0.95);
+  });
+}

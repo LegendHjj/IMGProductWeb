@@ -62,6 +62,11 @@
           <span>Prompt Notes</span>
           <span class="badge badge-active">New</span>
         </a>
+        <a href="#" class="nav-item" data-tab="combine-images">
+          <i data-lucide="layout-template"></i>
+          <span>Combine Images</span>
+          <span class="badge badge-active">New</span>
+        </a>
         <a href="#" class="nav-item disabled" data-tab="compress">
           <i data-lucide="minimize-2"></i>
           <span>Compress Image</span>
@@ -653,6 +658,72 @@
         </div>
       </div>
 
+      <!-- Panel 5.5: Combine Images -->
+      <div class="tab-panel hidden" id="panel-combine-images">
+        <header class="workspace-header">
+          <div class="header-title">
+            <h2>Combine Images (Vertical Stitching)</h2>
+            <p>Stitch multiple images together vertically. Crop overlapping parts before combining.</p>
+          </div>
+        </header>
+
+        <div class="workspace-content">
+          <!-- Drag & Drop Container -->
+          <div class="dropzone" id="combine-dropzone">
+            <input type="file" id="combine-fileInput" multiple accept=".png,.jpg,.jpeg,.webp,.bmp" class="file-input-hidden">
+            <div class="dropzone-inner">
+              <div class="upload-icon-container">
+                <i data-lucide="layers" class="upload-icon"></i>
+              </div>
+              <h3>Drag and drop images here</h3>
+              <p class="dropzone-subtitle">or <span class="browse-link">browse files</span> from your computer</p>
+              <p class="dropzone-formats">Images will be stitched from top to bottom.</p>
+            </div>
+          </div>
+
+          <!-- Queue Section -->
+          <div class="queue-section panel-hidden" id="combine-queueSection">
+            <div class="queue-header">
+              <div class="queue-info">
+                <h3>Image Sequence</h3>
+                <span class="queue-stats" id="combine-queueStats">0 images</span>
+              </div>
+              <div class="queue-actions">
+                <button class="btn btn-outline" id="combine-clearQueueBtn">
+                  <i data-lucide="trash-2"></i>
+                  <span>Clear All</span>
+                </button>
+                <button class="btn btn-outline" id="combine-addMoreBtn">
+                  <i data-lucide="plus"></i>
+                  <span>Add Images</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Queue List Grid -->
+            <div class="queue-grid" id="combine-queueGrid">
+              <!-- File Cards injected here -->
+            </div>
+
+            <!-- Master Control Bar -->
+            <div class="master-bar">
+              <div class="master-progress-container">
+                <div class="master-progress-bar" id="combine-masterProgressBar" style="width: 0%"></div>
+              </div>
+              <div class="master-bar-inner">
+                <div class="master-status" id="combine-masterStatus">Ready to combine</div>
+                <div class="master-buttons">
+                  <button class="btn btn-primary" id="combine-convertBtn" disabled>
+                    <i data-lucide="arrow-down-to-line"></i>
+                    <span>Combine Vertically</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Panel 6: Image Prompt Notes -->
       <div class="tab-panel hidden" id="panel-prompt-notes">
         <header class="workspace-header">
@@ -744,6 +815,31 @@
       <div class="logo-preview-modal-info">
         <span>Scale: <strong id="logoScalePreviewPct">17%</strong> of image width</span>
         <span id="logoScalePreviewDimNote">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Combine Crop Modal -->
+  <div class="combine-crop-modal-overlay hidden" id="combineCropModalOverlay">
+    <div class="combine-crop-modal" role="dialog" aria-modal="true">
+      <div class="combine-crop-modal-header">
+        <h3>
+          <i data-lucide="crop"></i>
+          Crop Image Part
+        </h3>
+        <button class="btn-modal-close" id="combineCropModalCloseBtn" title="Close">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="combine-crop-modal-canvas-wrap">
+        <img id="combineCropModalImg" src="" alt="Crop target" style="max-width: 100%; display: block;" />
+      </div>
+      <div class="combine-crop-modal-footer">
+        <div class="combine-crop-status">Adjust edges to remove overlap or UI artifacts.</div>
+        <div class="combine-crop-actions">
+          <button class="btn btn-outline" id="combineCropCancelBtn">Cancel</button>
+          <button class="btn btn-primary" id="combineCropSaveBtn">Apply Crop</button>
+        </div>
       </div>
     </div>
   </div>

@@ -1,6 +1,6 @@
 import Cropper from 'cropperjs';
 import 'cropperjs/dist/cropper.css';
-import { convertToJpg, applyLogo, createZip, formatBytes, getExtension, removeGeminiWatermark, extractImageUrls } from './utils.js';
+import { convertToJpg, applyLogo, createZip, formatBytes, getExtension, removeGeminiWatermark, extractImageUrls, combineImagesVertically } from './utils.js';
 
 // ==========================================
 // APPLICATION STATE
@@ -40,6 +40,12 @@ let isCropDataSyncing = false;
 let bulkQueue = [];
 let isBulkDownloading = false;
 const BULK_FETCH_TIMEOUT_MS = 30000;
+
+// Combine Images State
+let combineQueue = [];
+let isCombining = false;
+let combineCropper = null;
+let currentCombineCropId = null;
 
 // Image Prompt Notes State
 let imagePromptNotes = [];
@@ -150,6 +156,25 @@ const bulkMasterProgressBar = document.getElementById('bulk-masterProgressBar');
 const bulkMasterStatus = document.getElementById('bulk-masterStatus');
 const bulkConvertBtn = document.getElementById('bulk-convertBtn');
 const bulkDownloadAllBtn = document.getElementById('bulk-downloadAllBtn');
+
+// Combine Images Elements
+const combineDropzone = document.getElementById('combine-dropzone');
+const combineFileInput = document.getElementById('combine-fileInput');
+const combineQueueSection = document.getElementById('combine-queueSection');
+const combineQueueStats = document.getElementById('combine-queueStats');
+const combineClearQueueBtn = document.getElementById('combine-clearQueueBtn');
+const combineAddMoreBtn = document.getElementById('combine-addMoreBtn');
+const combineQueueGrid = document.getElementById('combine-queueGrid');
+const combineMasterProgressBar = document.getElementById('combine-masterProgressBar');
+const combineMasterStatus = document.getElementById('combine-masterStatus');
+const combineConvertBtn = document.getElementById('combine-convertBtn');
+
+// Combine Crop Modal Elements
+const combineCropModalOverlay = document.getElementById('combineCropModalOverlay');
+const combineCropModalCloseBtn = document.getElementById('combineCropModalCloseBtn');
+const combineCropModalImg = document.getElementById('combineCropModalImg');
+const combineCropCancelBtn = document.getElementById('combineCropCancelBtn');
+const combineCropSaveBtn = document.getElementById('combineCropSaveBtn');
 
 // Image Prompt Notes Elements
 const promptTitleInput = document.getElementById('prompt-titleInput');
@@ -318,6 +343,25 @@ function init() {
   cropResetBtn.addEventListener('click', resetCropBox);
   cropChangeBtn.addEventListener('click', () => cropFileInput.click());
   cropDownloadBtn.addEventListener('click', downloadCroppedImage);
+
+  // ----------------------------------------
+  // TAB 5.5: COMBINE IMAGES LISTENERS
+  // ----------------------------------------
+  combineDropzone.addEventListener('dragover', handleCombineDragOver);
+  combineDropzone.addEventListener('dragenter', handleCombineDragOver);
+  combineDropzone.addEventListener('dragleave', handleCombineDragLeave);
+  combineDropzone.addEventListener('dragend', handleCombineDragLeave);
+  combineDropzone.addEventListener('drop', handleCombineDrop);
+  combineDropzone.addEventListener('click', () => combineFileInput.click());
+  combineFileInput.addEventListener('change', handleCombineFileSelect);
+
+  combineClearQueueBtn.addEventListener('click', clearCombineQueue);
+  combineAddMoreBtn.addEventListener('click', () => combineFileInput.click());
+  combineConvertBtn.addEventListener('click', convertCombineAll);
+
+  combineCropModalCloseBtn.addEventListener('click', closeCombineCropModal);
+  combineCropCancelBtn.addEventListener('click', closeCombineCropModal);
+  combineCropSaveBtn.addEventListener('click', saveCombineCrop);
 
   // ----------------------------------------
   // TAB 5: BULK DOWNLOADER LISTENERS
@@ -2449,6 +2493,7 @@ function updateFileCardUI(item, gridElement) {
 }
 
 // Clean up windows unload events
+// Clean up windows unload events
 window.addEventListener('beforeunload', () => {
   pngQueue.forEach(item => {
     if (item.localThumbUrl) URL.revokeObjectURL(item.localThumbUrl);
@@ -2471,6 +2516,264 @@ window.addEventListener('beforeunload', () => {
   }
   destroyCropper();
 });
+
+// ==========================================
+// TAB 5.5: COMBINE IMAGES PROCESSORS
+// ==========================================
+function handleCombineDragOver(e) {
+  e.preventDefault();
+  combineDropzone.classList.add('dragover');
+}
+
+function handleCombineDragLeave(e) {
+  e.preventDefault();
+  combineDropzone.classList.remove('dragover');
+}
+
+function handleCombineDrop(e) {
+  e.preventDefault();
+  combineDropzone.classList.remove('dragover');
+  const files = e.dataTransfer.files;
+  if (files.length > 0) processCombineFiles(files);
+}
+
+function handleCombineFileSelect(e) {
+  const files = e.target.files;
+  if (files.length > 0) processCombineFiles(files);
+  combineFileInput.value = '';
+}
+
+function processCombineFiles(filesList) {
+  const maxLimit = 50 * 1024 * 1024;
+  let addedAny = false;
+
+  Array.from(filesList).forEach((file) => {
+    const ext = getExtension(file.name);
+    const validFormats = ['png', 'jpg', 'jpeg', 'webp', 'bmp'];
+    
+    if (!validFormats.includes(ext)) {
+      alert(`Format error: "${file.name}" is not supported.`);
+      return;
+    }
+
+    if (file.size > maxLimit) {
+      alert(`Size limit error: "${file.name}" exceeds the 50MB maximum size.`);
+      return;
+    }
+
+    const localThumbUrl = URL.createObjectURL(file);
+    const item = {
+      id: Math.random().toString(36).substring(2, 11),
+      file: file,
+      name: file.name,
+      ext: ext,
+      size: file.size,
+      status: 'pending',
+      localThumbUrl: localThumbUrl,
+      cropData: null // {x, y, width, height}
+    };
+
+    combineQueue.push(item);
+    renderCombineCard(item);
+    addedAny = true;
+  });
+
+  if (addedAny) {
+    updateCombineLayoutVisibility();
+    updateCombineQueueStats();
+  }
+}
+
+function updateCombineLayoutVisibility() {
+  if (combineQueue.length > 0) {
+    combineDropzone.classList.add('panel-hidden');
+    combineQueueSection.classList.remove('panel-hidden');
+  } else {
+    combineDropzone.classList.remove('panel-hidden');
+    combineQueueSection.classList.add('panel-hidden');
+  }
+}
+
+function updateCombineQueueStats() {
+  const count = combineQueue.length;
+  combineQueueStats.textContent = `${count} image${count > 1 ? 's' : ''}`;
+  combineConvertBtn.disabled = count < 2 || isCombining;
+}
+
+function renderCombineCard(item) {
+  const clone = fileCardTemplate.content.cloneNode(true);
+  const card = clone.querySelector('.file-card');
+  card.setAttribute('data-id', item.id);
+  
+  card.querySelector('.file-name').textContent = item.name;
+  card.querySelector('.file-name').title = item.name;
+  card.querySelector('.file-size').textContent = formatBytes(item.size);
+  
+  const img = card.querySelector('.preview-img');
+  img.src = item.localThumbUrl;
+  img.classList.remove('hidden');
+  card.querySelector('.preview-placeholder').classList.add('hidden');
+  
+  const removeBtn = card.querySelector('.card-remove-btn');
+  removeBtn.addEventListener('click', () => removeCombineFile(item.id));
+  
+  const actionsContainer = card.querySelector('.card-actions');
+  actionsContainer.innerHTML = ''; 
+  
+  const cropBtn = document.createElement('button');
+  cropBtn.className = 'btn-card-crop';
+  cropBtn.innerHTML = '<i data-lucide="crop"></i><span>Crop</span>';
+  cropBtn.addEventListener('click', () => openCombineCropModal(item.id));
+  
+  actionsContainer.appendChild(cropBtn);
+  
+  combineQueueGrid.appendChild(card);
+  if (window.lucide) {
+    lucide.createIcons({ root: card });
+  }
+}
+
+function removeCombineFile(id) {
+  const index = combineQueue.findIndex(item => item.id === id);
+  if (index === -1) return;
+
+  const item = combineQueue[index];
+  if (item.localThumbUrl) URL.revokeObjectURL(item.localThumbUrl);
+
+  combineQueue.splice(index, 1);
+  const card = combineQueueGrid.querySelector(`[data-id="${id}"]`);
+  if (card) card.remove();
+
+  updateCombineLayoutVisibility();
+  updateCombineQueueStats();
+}
+
+function clearCombineQueue() {
+  if (isCombining) return;
+  combineQueue.forEach(item => {
+    if (item.localThumbUrl) URL.revokeObjectURL(item.localThumbUrl);
+  });
+  combineQueue = [];
+  combineQueueGrid.innerHTML = '';
+  updateCombineLayoutVisibility();
+  updateCombineQueueStats();
+  combineMasterStatus.textContent = 'Ready to combine';
+}
+
+function openCombineCropModal(id) {
+  const item = combineQueue.find(i => i.id === id);
+  if (!item) return;
+  currentCombineCropId = id;
+  
+  combineCropModalImg.src = item.localThumbUrl;
+  combineCropModalOverlay.classList.remove('hidden');
+  
+  setTimeout(() => {
+    combineCropModalOverlay.classList.add('visible');
+    if (combineCropper) {
+      combineCropper.destroy();
+    }
+    
+    combineCropper = new Cropper(combineCropModalImg, {
+      viewMode: 1,
+      autoCropArea: 1,
+      background: false,
+      zoomable: false,
+      ready() {
+        if (item.cropData) {
+          combineCropper.setData(item.cropData);
+        }
+      }
+    });
+  }, 50);
+}
+
+function closeCombineCropModal() {
+  combineCropModalOverlay.classList.remove('visible');
+  setTimeout(() => {
+    combineCropModalOverlay.classList.add('hidden');
+    if (combineCropper) {
+      combineCropper.destroy();
+      combineCropper = null;
+    }
+    currentCombineCropId = null;
+  }, 250);
+}
+
+function saveCombineCrop() {
+  if (!combineCropper || !currentCombineCropId) return;
+  
+  const item = combineQueue.find(i => i.id === currentCombineCropId);
+  if (item) {
+    const cropData = combineCropper.getData(true);
+    item.cropData = {
+      x: cropData.x,
+      y: cropData.y,
+      width: cropData.width,
+      height: cropData.height
+    };
+    
+    const card = combineQueueGrid.querySelector(`[data-id="${currentCombineCropId}"]`);
+    if (card) {
+      const badge = card.querySelector('.file-badge');
+      badge.textContent = 'Cropped';
+      badge.className = 'file-badge badge-active';
+    }
+  }
+  closeCombineCropModal();
+}
+
+async function convertCombineAll() {
+  if (combineQueue.length < 2 || isCombining) return;
+
+  isCombining = true;
+  combineConvertBtn.disabled = true;
+  combineClearQueueBtn.disabled = true;
+  combineAddMoreBtn.disabled = true;
+  
+  combineMasterStatus.textContent = 'Stitching images...';
+  combineMasterStatus.classList.add('pulse');
+  combineMasterProgressBar.style.width = '50%';
+
+  try {
+    const blob = await combineImagesVertically(combineQueue);
+    combineMasterProgressBar.style.width = '100%';
+    combineMasterStatus.textContent = 'Combination complete!';
+    
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    
+    // Construct meaningful filename from original files
+    const baseNames = combineQueue.slice(0, 3).map(item => {
+      const lastDot = item.name.lastIndexOf('.');
+      return lastDot > 0 ? item.name.substring(0, lastDot) : item.name;
+    });
+    let downloadName = baseNames.join('_');
+    if (combineQueue.length > 3) {
+      downloadName += `_and_${combineQueue.length - 3}_more`;
+    }
+    downloadName += '_combined.jpg';
+    
+    a.download = downloadName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    
+  } catch (err) {
+    console.error(err);
+    alert('Failed to combine images: ' + err.message);
+    combineMasterStatus.textContent = 'Combination failed.';
+    combineMasterProgressBar.style.width = '0%';
+  }
+
+  isCombining = false;
+  combineConvertBtn.disabled = false;
+  combineClearQueueBtn.disabled = false;
+  combineAddMoreBtn.disabled = false;
+  combineMasterStatus.classList.remove('pulse');
+}
 
 // Run Init on Page Load
 init();
