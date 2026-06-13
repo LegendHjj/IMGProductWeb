@@ -1304,11 +1304,24 @@ async function convertGeminiAll() {
     try {
       const { blob, meta } = await removeGeminiWatermark(item.file, { maxPasses });
       item.progress = 100;
-      item.status = 'done';
       item.outputBlob = blob;
       item.outputUrl = URL.createObjectURL(blob);
       item.outputFormat = 'png';
       item.geminiMeta = meta;
+
+      // If the library found and applied a watermark removal, mark as done.
+      // If meta.applied is false, the image had no detectable Gemini logo —
+      // still mark as 'done' so the user can download, but store a note.
+      if (meta && meta.applied === false) {
+        item.status = 'done';
+        item.noWatermark = true;
+        item.errorMessage = meta.skipReason === 'no-watermark-detected'
+          ? 'No Gemini logo detected — original returned'
+          : 'Watermark removal skipped — original returned';
+      } else {
+        item.status = 'done';
+        item.noWatermark = false;
+      }
     } catch (err) {
       console.error(err);
       item.status = 'error';
@@ -1326,13 +1339,19 @@ async function convertGeminiAll() {
 
   geminiMasterStatus.classList.remove('pulse');
 
-  const successCount = geminiQueue.filter(item => item.status === 'done').length;
+  const successCount = geminiQueue.filter(item => item.status === 'done' && !item.noWatermark).length;
+  const noWatermarkCount = geminiQueue.filter(item => item.status === 'done' && item.noWatermark).length;
   const failCount = geminiQueue.filter(item => item.status === 'error').length;
 
-  if (failCount === 0) {
+  if (failCount === 0 && noWatermarkCount === 0) {
     geminiMasterStatus.textContent = `Successfully cleaned ${successCount} image${successCount > 1 ? 's' : ''}!`;
+  } else if (failCount === 0) {
+    const parts = [];
+    if (successCount > 0) parts.push(`${successCount} cleaned`);
+    if (noWatermarkCount > 0) parts.push(`${noWatermarkCount} had no Gemini logo`);
+    geminiMasterStatus.textContent = `Completed: ${parts.join(', ')}.`;
   } else {
-    geminiMasterStatus.textContent = `Completed: ${successCount} cleaned, ${failCount} failed.`;
+    geminiMasterStatus.textContent = `Completed: ${successCount} cleaned, ${noWatermarkCount} no logo found, ${failCount} failed.`;
   }
 
   updateGeminiMasterProgress();
@@ -2429,6 +2448,7 @@ function loadLogoCache() {
   img.src = savedB64;
 }
 
+
 function updateFileCardUI(item, gridElement) {
   const card = gridElement.querySelector(`[data-id="${item.id}"]`);
   if (!card) return;
@@ -2459,11 +2479,7 @@ function updateFileCardUI(item, gridElement) {
     resultPanel.classList.add('hidden');
     downloadBtn.disabled = true;
   } else if (item.status === 'done') {
-    const extName = item.outputFormat ? item.outputFormat.toUpperCase() : 'JPG';
-    badge.textContent = extName;
-    badge.classList.add('badge-done');
     progressContainer.classList.add('hidden');
-    
     resultPanel.classList.remove('hidden');
     resultPanel.querySelector('.result-size').textContent = formatBytes(item.outputBlob.size);
     
@@ -2479,6 +2495,17 @@ function updateFileCardUI(item, gridElement) {
       savingsEl.classList.remove('hidden');
     } else {
       savingsEl.classList.add('hidden');
+    }
+
+    if (item.noWatermark) {
+      // No Gemini logo was detected — show amber warning badge but still allow download
+      badge.textContent = 'No Logo';
+      badge.classList.add('badge-warn');
+      badge.setAttribute('title', item.errorMessage || 'No Gemini logo detected — original returned');
+    } else {
+      const extName = item.outputFormat ? item.outputFormat.toUpperCase() : 'JPG';
+      badge.textContent = extName;
+      badge.classList.add('badge-done');
     }
 
     downloadBtn.disabled = false;

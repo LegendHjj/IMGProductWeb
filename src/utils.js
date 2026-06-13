@@ -202,12 +202,8 @@ export async function removeGeminiWatermark(file, options = {}) {
     maxPasses: options.maxPasses || 4
   });
 
-  if (meta && meta.applied === false) {
-    throw new Error(meta.skipReason === 'no-watermark-detected'
-      ? 'No supported Gemini logo watermark detected'
-      : 'Gemini watermark removal was skipped');
-  }
-
+  // Always export the canvas even when no watermark was detected.
+  // Callers can inspect meta.applied to decide what status to show.
   const blob = await canvasToBlob(canvas, 'image/png');
   return { blob, meta };
 }
@@ -437,7 +433,7 @@ export function extractImageUrls(text) {
         } else {
           const bg = el.style.backgroundImage;
           if (bg) {
-            const match = bg.match(/url\(['"]?((?:https?:)?\/\/[^'"]+)['"]?\)/);
+            const match = bg.match(/url\(['"']?((?:https?:)?\/\/[^'"]+)['"']?\)/);
             if (match) addImageUrl(urls, match[1]);
           }
         }

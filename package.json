@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@pilio/gemini-watermark-remover": "^1.0.10",
+    "@pilio/gemini-watermark-remover": "^1.0.21",
     "cropperjs": "^1.6.2",
     "jszip": "^3.10.1"
   },

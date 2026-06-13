@@ -962,6 +962,12 @@ body {
   color: #fca5a5;
 }
 
+.badge-warn {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #fcd34d;
+  cursor: help;
+}
+
 /* File Card Progress Bar */
 .card-progress-bar-container {
   width: 100%;
