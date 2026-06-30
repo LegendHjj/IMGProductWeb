@@ -1,13 +1,26 @@
 import Cropper from 'cropperjs';
 import 'cropperjs/dist/cropper.css';
-import { convertToJpg, applyLogo, createZip, formatBytes, getExtension, removeGeminiWatermark, extractImageUrls, combineImagesVertically } from './utils.js';
+import {
+  applyLogo,
+  calculateLogoPlacement,
+  combineImagesVertically,
+  createZip,
+  exportImageFile,
+  formatBytes,
+  getExtension,
+  getImageOutputExtension,
+  imageFormatNeedsBackgroundFill,
+  imageFormatUsesQuality,
+  removeGeminiWatermark,
+  extractImageUrls
+} from './utils.js';
 
 // ==========================================
 // APPLICATION STATE
 // ==========================================
-let activeTab = 'png-to-jpg';
+let activeTab = 'home';
 
-// PNG to JPG State
+// Compress / Convert State
 let pngQueue = [];
 let isPngConverting = false;
 
@@ -23,6 +36,7 @@ const LS_LOGO_B64   = 'imgconv_logo_b64';
 const LS_LOGO_NAME = 'imgconv_logo_name';
 const LS_LOGO_SCALE = 'imgconv_logo_scale';
 const LS_LOGO_POSITION = 'imgconv_logo_position';
+const LS_LOGO_EDGE_DISTANCE = 'imgconv_logo_edge_distance';
 const LS_LOGO_FORMAT = 'imgconv_logo_format';
 const LS_LOGO_QUALITY = 'imgconv_logo_quality';
 
@@ -58,13 +72,17 @@ const LS_IMAGE_PROMPTS = 'imgconv_image_prompts_v1';
 // Sidebar navigation
 const navItems = document.querySelectorAll('.nav-item');
 const panels = document.querySelectorAll('.tab-panel');
+const tabLaunchers = document.querySelectorAll('[data-tab-target]');
 
-// PNG to JPG Converter Elements
+// Compress / Convert Elements
 const pngDropzone = document.getElementById('dropzone');
 const pngFileInput = document.getElementById('fileInput');
 const pngOptionsPanel = document.getElementById('optionsPanel');
+const pngOutputFormat = document.getElementById('outputFormat');
+const pngQualityGroup = document.getElementById('qualityGroup');
 const pngQualitySlider = document.getElementById('qualitySlider');
 const pngQualityValue = document.getElementById('qualityValue');
+const pngTransparencyGroup = document.getElementById('transparencyGroup');
 const pngTransparencyBg = document.getElementById('transparencyBg');
 const pngCustomColorContainer = document.getElementById('customColorContainer');
 const pngCustomColorPicker = document.getElementById('customColorPicker');
@@ -86,6 +104,8 @@ const logoOptionsPanel = document.getElementById('logo-optionsPanel');
 const logoSizeSlider = document.getElementById('logoSizeSlider');
 const logoSizeValue = document.getElementById('logoSizeValue');
 const logoPosition = document.getElementById('logoPosition');
+const logoEdgeDistanceSlider = document.getElementById('logoEdgeDistanceSlider');
+const logoEdgeDistanceValue = document.getElementById('logoEdgeDistanceValue');
 const logoOutFormat = document.getElementById('logoOutFormat');
 const logoQualitySlider = document.getElementById('logoQualitySlider');
 const logoQualityValue = document.getElementById('logoQualityValue');
@@ -209,8 +229,15 @@ function init() {
     });
   });
 
+  tabLaunchers.forEach(item => {
+    item.addEventListener('click', () => {
+      const tab = item.getAttribute('data-tab-target');
+      if (tab) switchTab(tab);
+    });
+  });
+
   // ----------------------------------------
-  // TAB 1: PNG TO JPG LISTENERS
+  // TAB 1: COMPRESS / CONVERT LISTENERS
   // ----------------------------------------
   pngDropzone.addEventListener('dragover', handlePngDragOver);
   pngDropzone.addEventListener('dragenter', handlePngDragOver);
@@ -219,6 +246,11 @@ function init() {
   pngDropzone.addEventListener('drop', handlePngDrop);
   pngDropzone.addEventListener('click', () => pngFileInput.click());
   pngFileInput.addEventListener('change', handlePngFileSelect);
+
+  pngOutputFormat.addEventListener('change', () => {
+    applyPngOutputFormatState();
+    resetPngQueueForReconvert();
+  });
 
   pngQualitySlider.addEventListener('input', (e) => {
     pngQualityValue.textContent = `${e.target.value}%`;
@@ -239,6 +271,7 @@ function init() {
   pngAddMoreBtn.addEventListener('click', () => pngFileInput.click());
   pngConvertBtn.addEventListener('click', convertPngAll);
   pngDownloadAllBtn.addEventListener('click', downloadPngAll);
+  applyPngOutputFormatState();
 
   // ----------------------------------------
   // TAB 2: ADD LOGO WATERMARKER LISTENERS
@@ -273,6 +306,15 @@ function init() {
   logoPosition.addEventListener('change', () => {
     localStorage.setItem(LS_LOGO_POSITION, logoPosition.value);
     updateLogoOverlayOnCards();
+    resetLogoQueueForReconvert();
+  });
+  logoEdgeDistanceSlider.addEventListener('input', (e) => {
+    logoEdgeDistanceValue.textContent = `${e.target.value}px`;
+    localStorage.setItem(LS_LOGO_EDGE_DISTANCE, e.target.value);
+    updateLogoOverlayOnCards();
+  });
+  logoEdgeDistanceSlider.addEventListener('change', () => {
+    localStorage.setItem(LS_LOGO_EDGE_DISTANCE, logoEdgeDistanceSlider.value);
     resetLogoQueueForReconvert();
   });
   logoSizeSlider.addEventListener('input', (e) => {
@@ -428,6 +470,8 @@ function switchTab(tabId) {
       panel.classList.add('hidden');
     }
   });
+
+  document.querySelector('.app-workspace')?.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // ==========================================
@@ -468,15 +512,35 @@ function handlePngTransparencyBgChange(e) {
   }
 }
 
+function applyPngOutputFormatState() {
+  const outputFormat = pngOutputFormat.value;
+  const usesQuality = imageFormatUsesQuality(outputFormat);
+  const needsBackgroundFill = imageFormatNeedsBackgroundFill(outputFormat);
+
+  pngQualitySlider.disabled = !usesQuality || isPngConverting;
+  pngQualityGroup.style.opacity = usesQuality ? '1' : '0.35';
+  pngTransparencyGroup.classList.toggle('panel-hidden', !needsBackgroundFill);
+  pngCustomColorContainer.classList.toggle(
+    'panel-hidden',
+    !needsBackgroundFill || pngTransparencyBg.value !== 'custom'
+  );
+
+  const extension = getImageOutputExtension(outputFormat).toUpperCase();
+  pngMasterStatus.textContent = pngQueue.length
+    ? `Ready to export as ${extension}`
+    : 'Ready to compress';
+}
+
 function processPngFiles(filesList) {
   const maxLimit = 50 * 1024 * 1024; // 50MB
   let addedAny = false;
 
   Array.from(filesList).forEach((file) => {
     const ext = getExtension(file.name);
+    const validFormats = ['png', 'jpg', 'jpeg', 'jfif', 'webp', 'bmp'];
     
-    if (ext !== 'png' && ext !== 'jfif') {
-      alert(`Format error: "${file.name}" is not supported. Please upload PNG or JFIF files.`);
+    if (!validFormats.includes(ext)) {
+      alert(`Format error: "${file.name}" is not supported. Please upload PNG, JPG, JPEG, JFIF, WEBP, or BMP images.`);
       return;
     }
 
@@ -503,7 +567,7 @@ function processPngFiles(filesList) {
       localThumbUrl: localThumbUrl,
       outputBlob: null,
       outputUrl: null,
-      outputFormat: 'jpg', // PNG/JFIF to JPG always yields a JPG file
+      outputFormat: getImageOutputExtension(pngOutputFormat.value),
       errorMessage: null
     };
 
@@ -569,7 +633,7 @@ function clearPngQueue() {
   updatePngQueueStats();
   updatePngMasterProgress();
 
-  pngMasterStatus.textContent = 'Ready to convert';
+  pngMasterStatus.textContent = 'Ready to compress';
   pngMasterStatus.className = 'master-status';
 }
 
@@ -607,7 +671,7 @@ function resetPngQueueForReconvert() {
   });
 
   if (changed) {
-    pngMasterStatus.textContent = 'Settings adjusted. Ready to convert again.';
+    pngMasterStatus.textContent = 'Settings adjusted. Ready to compress again.';
     pngMasterStatus.className = 'master-status';
     updatePngQueueStats();
     updatePngMasterProgress();
@@ -623,14 +687,17 @@ async function convertPngAll() {
   pngClearQueueBtn.disabled = true;
   pngDownloadAllBtn.disabled = true;
   
+  pngOutputFormat.disabled = true;
   pngQualitySlider.disabled = true;
   pngTransparencyBg.disabled = true;
   pngCustomColorPicker.disabled = true;
 
+  const outputFormat = pngOutputFormat.value;
+  const outputExtension = getImageOutputExtension(outputFormat);
   const quality = parseFloat(pngQualitySlider.value) / 100;
   const bgColor = pngBgColor;
 
-  pngMasterStatus.textContent = 'Converting images...';
+  pngMasterStatus.textContent = 'Compressing images...';
   pngMasterStatus.classList.add('pulse');
 
   for (let i = 0; i < pendingItems.length; i++) {
@@ -640,11 +707,16 @@ async function convertPngAll() {
     updateFileCardUI(item, pngQueueGrid);
 
     try {
-      const outputBlob = await convertToJpg(item.file, quality, bgColor);
+      const outputBlob = await exportImageFile(item.file, {
+        format: outputFormat,
+        quality,
+        bgColor
+      });
       item.progress = 100;
       item.status = 'done';
       item.outputBlob = outputBlob;
       item.outputUrl = URL.createObjectURL(outputBlob);
+      item.outputFormat = outputExtension;
     } catch (err) {
       console.error(err);
       item.status = 'error';
@@ -659,9 +731,10 @@ async function convertPngAll() {
   pngClearQueueBtn.disabled = false;
   pngConvertBtn.disabled = !pngQueue.some(item => item.status === 'pending');
   
-  pngQualitySlider.disabled = false;
+  pngOutputFormat.disabled = false;
   pngTransparencyBg.disabled = false;
   pngCustomColorPicker.disabled = false;
+  applyPngOutputFormatState();
 
   pngMasterStatus.classList.remove('pulse');
   
@@ -669,7 +742,7 @@ async function convertPngAll() {
   const failCount = pngQueue.filter(item => item.status === 'error').length;
   
   if (failCount === 0) {
-    pngMasterStatus.textContent = `Successfully converted ${successCount} image${successCount > 1 ? 's' : ''}!`;
+    pngMasterStatus.textContent = `Compressed ${successCount} image${successCount > 1 ? 's' : ''} as ${outputExtension.toUpperCase()}!`;
   } else {
     pngMasterStatus.textContent = `Completed: ${successCount} succeeded, ${failCount} failed.`;
   }
@@ -682,7 +755,7 @@ function downloadPngIndividual(item) {
 
   const a = document.createElement('a');
   a.href = item.outputUrl;
-  a.download = `${item.name}.jpg`;
+  a.download = `${item.name}.${item.outputFormat || getImageOutputExtension(pngOutputFormat.value)}`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -708,7 +781,8 @@ async function downloadPngAll() {
 
     const a = document.createElement('a');
     a.href = zipUrl;
-    a.download = 'ImgConvert-JPG-Pack.zip';
+    const ext = successItems[0]?.outputFormat || getImageOutputExtension(pngOutputFormat.value);
+    a.download = `ImgConvert-${ext.toUpperCase()}-Pack.zip`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -990,11 +1064,13 @@ async function convertLogoAll() {
   // Disable option controls
   logoSizeSlider.disabled = true;
   logoPosition.disabled = true;
+  logoEdgeDistanceSlider.disabled = true;
   logoOutFormat.disabled = true;
   logoQualitySlider.disabled = true;
 
   const size = parseInt(logoSizeSlider.value);
   const position = logoPosition.value;
+  const edgeDistance = parseInt(logoEdgeDistanceSlider.value, 10) || 0;
   const mimeType = logoOutFormat.value;
   const quality = parseFloat(logoQualitySlider.value) / 100;
 
@@ -1011,6 +1087,7 @@ async function convertLogoAll() {
       const outputBlob = await applyLogo(item.file, logoImageElement, {
         size,
         position,
+        edgeDistance,
         format: mimeType,
         quality
       });
@@ -1036,6 +1113,7 @@ async function convertLogoAll() {
   
   logoSizeSlider.disabled = false;
   logoPosition.disabled = false;
+  logoEdgeDistanceSlider.disabled = false;
   logoOutFormat.disabled = false;
   if (mimeType !== 'image/png') {
     logoQualitySlider.disabled = false;
@@ -2348,10 +2426,20 @@ function applyOverlayToCard(card) {
   const baseImg = card.querySelector('.preview-img');
   const sizePercent = parseInt(logoSizeSlider.value, 10) / 100;
   const position = logoPosition.value;
+  const edgeDistance = parseInt(logoEdgeDistanceSlider.value, 10) || 0;
 
   // Width of the logo in the thumbnail = rendered preview width * scale %
   const previewW = baseImg.offsetWidth || 120;
+  const previewH = baseImg.offsetHeight || 120;
   const logoW = Math.round(previewW * sizePercent);
+  const logoH = Math.round(logoW * (logoImageElement.naturalHeight / logoImageElement.naturalWidth));
+  const previewScale = baseImg.naturalWidth ? previewW / baseImg.naturalWidth : 1;
+  const previewEdgeDistance = edgeDistance * previewScale;
+  const wrapper = card.querySelector('.preview-wrapper');
+  if (wrapper) {
+    wrapper.style.width = `${previewW}px`;
+    wrapper.style.height = `${previewH}px`;
+  }
 
   overlayImg.src = logoBase64;
   overlayImg.style.width = `${logoW}px`;
@@ -2363,14 +2451,17 @@ function applyOverlayToCard(card) {
   overlayImg.style.left   = '';
   overlayImg.style.right  = '';
 
-  const pad = '4px';
-  switch (position) {
-    case 'top_left':     overlayImg.style.top = pad;    overlayImg.style.left  = pad; break;
-    case 'top_right':    overlayImg.style.top = pad;    overlayImg.style.right = pad; break;
-    case 'bottom_right': overlayImg.style.bottom = pad; overlayImg.style.right = pad; break;
-    case 'bottom_left':
-    default:             overlayImg.style.bottom = pad; overlayImg.style.left  = pad; break;
-  }
+  const { x, y } = calculateLogoPlacement({
+    imageWidth: previewW,
+    imageHeight: previewH,
+    logoWidth: logoW,
+    logoHeight: logoH,
+    position,
+    edgeDistance: previewEdgeDistance
+  });
+
+  overlayImg.style.left = `${x}px`;
+  overlayImg.style.top = `${y}px`;
 
   overlayImg.classList.remove('hidden');
 }
@@ -2417,6 +2508,7 @@ function restoreRangeValue(rangeElement, displayElement, savedValue, suffix = ''
 /** Restores logo image and Add Logo settings from localStorage on page load. */
 function loadLogoCache() {
   restoreRangeValue(logoSizeSlider, logoSizeValue, localStorage.getItem(LS_LOGO_SCALE), '%');
+  restoreRangeValue(logoEdgeDistanceSlider, logoEdgeDistanceValue, localStorage.getItem(LS_LOGO_EDGE_DISTANCE), 'px');
   restoreRangeValue(logoQualitySlider, logoQualityValue, localStorage.getItem(LS_LOGO_QUALITY), '%');
   restoreSelectValue(logoPosition, localStorage.getItem(LS_LOGO_POSITION));
   restoreSelectValue(logoOutFormat, localStorage.getItem(LS_LOGO_FORMAT));

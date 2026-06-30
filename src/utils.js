@@ -22,10 +22,73 @@ export function getExtension(filename) {
   return filename.slice(((filename.lastIndexOf(".") - 1) >>> 0) + 2).toLowerCase();
 }
 
+const IMAGE_OUTPUT_FORMATS = {
+  jpg: {
+    mimeType: 'image/jpeg',
+    extension: 'jpg',
+    usesQuality: true,
+    needsBackgroundFill: true
+  },
+  jpeg: {
+    mimeType: 'image/jpeg',
+    extension: 'jpg',
+    usesQuality: true,
+    needsBackgroundFill: true
+  },
+  png: {
+    mimeType: 'image/png',
+    extension: 'png',
+    usesQuality: false,
+    needsBackgroundFill: false
+  },
+  webp: {
+    mimeType: 'image/webp',
+    extension: 'webp',
+    usesQuality: true,
+    needsBackgroundFill: false
+  }
+};
+
+function resolveImageOutputFormat(format = 'jpg') {
+  const normalized = String(format).toLowerCase().replace(/^image\//, '');
+  return IMAGE_OUTPUT_FORMATS[normalized] || IMAGE_OUTPUT_FORMATS.jpg;
+}
+
+export function getImageOutputMimeType(format = 'jpg') {
+  return resolveImageOutputFormat(format).mimeType;
+}
+
+export function getImageOutputExtension(format = 'jpg') {
+  return resolveImageOutputFormat(format).extension;
+}
+
+export function imageFormatUsesQuality(format = 'jpg') {
+  return resolveImageOutputFormat(format).usesQuality;
+}
+
+export function imageFormatNeedsBackgroundFill(format = 'jpg') {
+  return resolveImageOutputFormat(format).needsBackgroundFill;
+}
+
 /**
  * High-performance image conversion to JPEG using createImageBitmap
  */
 export async function convertToJpg(file, quality = 0.85, bgColor = '#ffffff') {
+  return exportImageFile(file, {
+    format: 'image/jpeg',
+    quality,
+    bgColor
+  });
+}
+
+/**
+ * Export an image file to a chosen browser-supported image format.
+ */
+export async function exportImageFile(file, options = {}) {
+  const format = getImageOutputMimeType(options.format || 'image/jpeg');
+  const quality = imageFormatUsesQuality(format) ? options.quality : undefined;
+  const bgColor = options.bgColor || '#ffffff';
+
   try {
     // Attempt modern, fast decoding via createImageBitmap
     const bitmap = await createImageBitmap(file);
@@ -40,30 +103,30 @@ export async function convertToJpg(file, quality = 0.85, bgColor = '#ffffff') {
       throw new Error('Canvas 2D context unavailable');
     }
     
-    // Fill background (removes PNG transparency)
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (imageFormatNeedsBackgroundFill(format)) {
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
     
     // Draw the decoded bitmap
     ctx.drawImage(bitmap, 0, 0);
     bitmap.close(); // Free GPU/decoded memory
     
-    return new Promise((resolve, reject) => {
-      canvas.toBlob((blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error('Canvas to JPEG blob conversion failed'));
-      }, 'image/jpeg', quality);
-    });
+    return canvasToBlob(canvas, format, quality);
   } catch (error) {
     console.warn('createImageBitmap failed, falling back to FileReader image loader:', error);
-    return convertToJpgFallback(file, quality, bgColor);
+    return exportImageFileFallback(file, { format, quality, bgColor });
   }
 }
 
 /**
  * Fallback image converter using FileReader + HTMLImageElement
  */
-function convertToJpgFallback(file, quality = 0.85, bgColor = '#ffffff') {
+function exportImageFileFallback(file, options = {}) {
+  const format = getImageOutputMimeType(options.format || 'image/jpeg');
+  const quality = imageFormatUsesQuality(format) ? options.quality : undefined;
+  const bgColor = options.bgColor || '#ffffff';
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -79,20 +142,30 @@ function convertToJpgFallback(file, quality = 0.85, bgColor = '#ffffff') {
           return;
         }
         
-        ctx.fillStyle = bgColor;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        if (imageFormatNeedsBackgroundFill(format)) {
+          ctx.fillStyle = bgColor;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
         ctx.drawImage(img, 0, 0);
         
         canvas.toBlob((blob) => {
           if (blob) resolve(blob);
-          else reject(new Error('Canvas to JPEG blob conversion failed'));
-        }, 'image/jpeg', quality);
+          else reject(new Error('Canvas image export failed'));
+        }, format, quality);
       };
       img.onerror = () => reject(new Error('Failed to decode image file'));
       img.src = event.target.result;
     };
     reader.onerror = () => reject(new Error('FileReader read error'));
     reader.readAsDataURL(file);
+  });
+}
+
+function convertToJpgFallback(file, quality = 0.85, bgColor = '#ffffff') {
+  return exportImageFileFallback(file, {
+    format: 'image/jpeg',
+    quality,
+    bgColor
   });
 }
 
@@ -127,9 +200,9 @@ function getGeminiWatermarkEngine() {
   return geminiWatermarkEnginePromise;
 }
 
-function canvasToBlob(canvas, type = 'image/png') {
+function canvasToBlob(canvas, type = 'image/png', quality) {
   if (typeof canvas.convertToBlob === 'function') {
-    return canvas.convertToBlob({ type });
+    return canvas.convertToBlob({ type, quality });
   }
 
   if (typeof canvas.toBlob === 'function') {
@@ -137,7 +210,7 @@ function canvasToBlob(canvas, type = 'image/png') {
       canvas.toBlob((blob) => {
         if (blob) resolve(blob);
         else reject(new Error('Failed to export cleaned image'));
-      }, type);
+      }, type, quality);
     });
   }
 
@@ -211,8 +284,39 @@ export async function removeGeminiWatermark(file, options = {}) {
 /**
  * Composite a logo watermark onto a base image
  */
+export function calculateLogoPlacement({
+  imageWidth,
+  imageHeight,
+  logoWidth,
+  logoHeight,
+  position = 'bottom_right',
+  edgeDistance = 0
+}) {
+  const distance = Number.isFinite(Number(edgeDistance)) ? Number(edgeDistance) : 0;
+
+  switch (position) {
+    case 'top_left':
+      return { x: distance, y: distance };
+    case 'top_right':
+      return { x: imageWidth - logoWidth - distance, y: distance };
+    case 'bottom_left':
+      return { x: distance, y: imageHeight - logoHeight - distance };
+    case 'center':
+      return {
+        x: (imageWidth - logoWidth) / 2,
+        y: (imageHeight - logoHeight) / 2
+      };
+    case 'bottom_right':
+    default:
+      return {
+        x: imageWidth - logoWidth - distance,
+        y: imageHeight - logoHeight - distance
+      };
+  }
+}
+
 export async function applyLogo(baseFile, logoImageElement, options = {}) {
-  const { size = 17, position = 'bottom_right', format = 'image/jpeg', quality = 0.9 } = options;
+  const { size = 17, position = 'bottom_right', edgeDistance = 0, format = 'image/jpeg', quality = 0.9 } = options;
 
   try {
     const baseBitmap = await createImageBitmap(baseFile);
@@ -241,31 +345,14 @@ export async function applyLogo(baseFile, logoImageElement, options = {}) {
     const scaleRatio = logoW / logoImageElement.naturalWidth;
     const logoH = logoImageElement.naturalHeight * scaleRatio;
 
-    let x = 0;
-    let y = 0;
-
-    switch (position) {
-      case 'top_left':
-        x = 0;
-        y = 0;
-        break;
-      case 'top_right':
-        x = imgW - logoW;
-        y = 0;
-        break;
-      case 'bottom_left':
-        x = 0;
-        y = imgH - logoH;
-        break;
-      case 'bottom_right':
-        x = imgW - logoW;
-        y = imgH - logoH;
-        break;
-      case 'center':
-        x = (imgW - logoW) / 2;
-        y = (imgH - logoH) / 2;
-        break;
-    }
+    const { x, y } = calculateLogoPlacement({
+      imageWidth: imgW,
+      imageHeight: imgH,
+      logoWidth: logoW,
+      logoHeight: logoH,
+      position,
+      edgeDistance
+    });
 
     ctx.drawImage(logoImageElement, x, y, logoW, logoH);
 
@@ -285,7 +372,7 @@ export async function applyLogo(baseFile, logoImageElement, options = {}) {
  * Fallback image logo watermarker using FileReader + Image element
  */
 function applyLogoFallback(baseFile, logoImageElement, options = {}) {
-  const { size = 17, position = 'bottom_right', format = 'image/jpeg', quality = 0.9 } = options;
+  const { size = 17, position = 'bottom_right', edgeDistance = 0, format = 'image/jpeg', quality = 0.9 } = options;
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -314,15 +401,14 @@ function applyLogoFallback(baseFile, logoImageElement, options = {}) {
         const scaleRatio = logoW / logoImageElement.naturalWidth;
         const logoH = logoImageElement.naturalHeight * scaleRatio;
 
-        let x = 0;
-        let y = 0;
-        switch (position) {
-          case 'top_left': x = 0; y = 0; break;
-          case 'top_right': x = imgW - logoW; y = 0; break;
-          case 'bottom_left': x = 0; y = imgH - logoH; break;
-          case 'bottom_right': x = imgW - logoW; y = imgH - logoH; break;
-          case 'center': x = (imgW - logoW) / 2; y = (imgH - logoH) / 2; break;
-        }
+        const { x, y } = calculateLogoPlacement({
+          imageWidth: imgW,
+          imageHeight: imgH,
+          logoWidth: logoW,
+          logoHeight: logoH,
+          position,
+          edgeDistance
+        });
 
         ctx.drawImage(logoImageElement, x, y, logoW, logoH);
         

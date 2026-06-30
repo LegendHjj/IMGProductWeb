@@ -11,8 +11,8 @@
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Stylesheets -->
-  <script type="module" crossorigin src="/IMGProductWeb/assets/index-DhyuJ0wu.js"></script>
-  <link rel="stylesheet" crossorigin href="/IMGProductWeb/assets/index-COg9RVeB.css">
+  <script type="module" crossorigin src="/IMGProductWeb/assets/index-gKTQzhxS.js"></script>
+  <link rel="stylesheet" crossorigin href="/IMGProductWeb/assets/index-D-MjwXXP.css">
 </head>
 <body>
   <div class="app-container">
@@ -28,20 +28,22 @@
         </div>
         <div class="brand-text">
           <h1>ImgConvert</h1>
-          <span>Pro Suite</span>
+          <span>Local Image Tools</span>
         </div>
       </div>
 
       <nav class="sidebar-nav">
-        <a href="#" class="nav-item active" data-tab="png-to-jpg">
-          <i data-lucide="image"></i>
-          <span>PNG & JFIF to JPG</span>
-          <span class="badge badge-active">Core</span>
+        <a href="#" class="nav-item active" data-tab="home">
+          <i data-lucide="layout-dashboard"></i>
+          <span>Home</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="png-to-jpg">
+          <i data-lucide="minimize-2"></i>
+          <span>Compress / Convert</span>
         </a>
         <a href="#" class="nav-item" data-tab="add-logo">
           <i data-lucide="award"></i>
           <span>Add Logo</span>
-          <span class="badge badge-active">New</span>
         </a>
         <a href="#" class="nav-item" data-tab="remove-gemini">
           <i data-lucide="eraser"></i>
@@ -51,32 +53,18 @@
         <a href="#" class="nav-item" data-tab="crop-image">
           <i data-lucide="crop"></i>
           <span>Crop Image</span>
-          <span class="badge badge-active">New</span>
         </a>
         <a href="#" class="nav-item" data-tab="bulk-download">
           <i data-lucide="download-cloud"></i>
           <span>Bulk Downloader</span>
-          <span class="badge badge-active">New</span>
         </a>
         <a href="#" class="nav-item" data-tab="prompt-notes">
           <i data-lucide="notebook-tabs"></i>
           <span>Prompt Notes</span>
-          <span class="badge badge-active">New</span>
         </a>
         <a href="#" class="nav-item" data-tab="combine-images">
           <i data-lucide="layout-template"></i>
           <span>Combine Images</span>
-          <span class="badge badge-active">New</span>
-        </a>
-        <a href="#" class="nav-item disabled" data-tab="compress">
-          <i data-lucide="minimize-2"></i>
-          <span>Compress Image</span>
-          <span class="badge">Soon</span>
-        </a>
-        <a href="#" class="nav-item disabled" data-tab="resize">
-          <i data-lucide="move"></i>
-          <span>Resize Image</span>
-          <span class="badge">Soon</span>
         </a>
       </nav>
 
@@ -93,27 +81,135 @@
 
     <!-- Main Workspace Area -->
     <main class="app-workspace">
+      <!-- Home: Tool Overview -->
+      <div class="tab-panel" id="panel-home">
+        <header class="home-hero">
+          <div class="home-hero-copy">
+            <h2>ImgConvert</h2>
+            <p>Choose the exact image job you need. Everything runs locally in your browser, so product photos and prompt notes stay on this computer.</p>
+            <div class="home-hero-actions">
+              <button type="button" class="btn btn-primary" data-tab-target="png-to-jpg">
+                <i data-lucide="upload-cloud"></i>
+                <span>Start with images</span>
+              </button>
+              <button type="button" class="btn btn-outline" data-tab-target="prompt-notes">
+                <i data-lucide="notebook-tabs"></i>
+                <span>Open prompt notes</span>
+              </button>
+            </div>
+          </div>
+          <div class="home-drop-summary">
+            <div class="summary-icon">
+              <i data-lucide="images"></i>
+            </div>
+            <h3>Fast image workflow</h3>
+            <p>Upload, adjust, process, and download without sending files to a server.</p>
+            <div class="summary-row">
+              <span>7 tools ready</span>
+              <span>Browser only</span>
+            </div>
+          </div>
+        </header>
+
+        <section class="home-tool-section" aria-labelledby="homeToolsTitle">
+          <div class="section-heading-row">
+            <div>
+              <h3 id="homeToolsTitle">What do you want to do?</h3>
+              <p>Each tool below is already built and still available in the sidebar.</p>
+            </div>
+          </div>
+
+          <div class="tool-card-grid">
+            <button type="button" class="tool-card primary-tool" data-tab-target="png-to-jpg">
+              <i data-lucide="minimize-2"></i>
+              <span class="tool-card-title">Compress / Convert</span>
+              <span class="tool-card-desc">Make files smaller and export JPG, PNG, or WEBP in batch.</span>
+              <span class="tool-card-link">Open tool</span>
+            </button>
+            <button type="button" class="tool-card" data-tab-target="add-logo">
+              <i data-lucide="award"></i>
+              <span class="tool-card-title">Add Logo</span>
+              <span class="tool-card-desc">Apply your logo watermark to product photos with saved size and position settings.</span>
+              <span class="tool-card-link">Open tool</span>
+            </button>
+            <button type="button" class="tool-card" data-tab-target="remove-gemini">
+              <i data-lucide="eraser"></i>
+              <span class="tool-card-title">Remove Gemini Logo</span>
+              <span class="tool-card-desc">Clean Gemini's visible bottom-right logo mark from images in bulk.</span>
+              <span class="tool-card-link">Open tool</span>
+            </button>
+            <button type="button" class="tool-card" data-tab-target="crop-image">
+              <i data-lucide="crop"></i>
+              <span class="tool-card-title">Crop Image</span>
+              <span class="tool-card-desc">Crop one image visually or by exact pixel width, height, X, and Y values.</span>
+              <span class="tool-card-link">Open tool</span>
+            </button>
+            <button type="button" class="tool-card" data-tab-target="bulk-download">
+              <i data-lucide="download-cloud"></i>
+              <span class="tool-card-title">Bulk Downloader</span>
+              <span class="tool-card-desc">Paste HTML or text, extract image URLs, and package them as a ZIP.</span>
+              <span class="tool-card-link">Open tool</span>
+            </button>
+            <button type="button" class="tool-card" data-tab-target="prompt-notes">
+              <i data-lucide="notebook-tabs"></i>
+              <span class="tool-card-title">Prompt Notes</span>
+              <span class="tool-card-desc">Save, search, copy, and export reusable AI image prompts locally.</span>
+              <span class="tool-card-link">Open tool</span>
+            </button>
+            <button type="button" class="tool-card" data-tab-target="combine-images">
+              <i data-lucide="layout-template"></i>
+              <span class="tool-card-title">Combine Images</span>
+              <span class="tool-card-desc">Stitch multiple images vertically, with optional crop cleanup before combining.</span>
+              <span class="tool-card-link">Open tool</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="home-status-row" aria-label="Workflow notes">
+          <div class="status-panel">
+            <i data-lucide="shield-check"></i>
+            <div>
+              <h3>Private by default</h3>
+              <p>Processing happens in your browser. Files are not uploaded.</p>
+            </div>
+          </div>
+          <div class="status-panel">
+            <i data-lucide="mouse-pointer-click"></i>
+            <div>
+              <h3>One click to each task</h3>
+              <p>The home cards and sidebar both open the same working tools.</p>
+            </div>
+          </div>
+          <div class="status-panel">
+            <i data-lucide="download"></i>
+            <div>
+              <h3>Batch-ready output</h3>
+              <p>Most tools support queue processing and ZIP downloads.</p>
+            </div>
+          </div>
+        </section>
+      </div>
       
-      <!-- Panel 1: PNG / JFIF to JPG Converter -->
-      <div class="tab-panel" id="panel-png-to-jpg">
+      <!-- Panel 1: Compress / Convert Image -->
+      <div class="tab-panel hidden" id="panel-png-to-jpg">
         <header class="workspace-header">
           <div class="header-title">
-            <h2>Convert PNG / JFIF to JPG</h2>
-            <p>Batch convert PNG or JFIF files to high-quality JPEG format locally.</p>
+            <h2>Compress / Convert Image</h2>
+            <p>Batch make image files smaller and choose JPG, PNG, or WEBP output locally.</p>
           </div>
         </header>
 
         <div class="workspace-content">
           <!-- Drag & Drop Container -->
           <div class="dropzone" id="dropzone">
-            <input type="file" id="fileInput" multiple accept=".png,.jfif" class="file-input-hidden">
+            <input type="file" id="fileInput" multiple accept=".png,.jpg,.jpeg,.jfif,.webp,.bmp" class="file-input-hidden">
             <div class="dropzone-inner">
               <div class="upload-icon-container">
                 <i data-lucide="upload-cloud" class="upload-icon"></i>
               </div>
               <h3>Drag and drop files here</h3>
               <p class="dropzone-subtitle">or <span class="browse-link">browse files</span> from your computer</p>
-              <p class="dropzone-formats">Supports PNG and JFIF files (max 50MB per file)</p>
+              <p class="dropzone-formats">Supports PNG, JPG, JPEG, JFIF, WEBP, and BMP (max 50MB per file)</p>
             </div>
           </div>
 
@@ -121,21 +217,34 @@
           <div class="options-card panel-hidden" id="optionsPanel">
             <div class="options-header">
               <i data-lucide="sliders"></i>
-              <h3>Conversion Settings</h3>
+              <h3>Compression Settings</h3>
             </div>
             <div class="options-grid">
-              <!-- Quality Control -->
               <div class="option-group">
+                <label for="outputFormat">Output Format</label>
+                <div class="select-wrapper">
+                  <select id="outputFormat" class="select-input">
+                    <option value="image/jpeg" selected>JPG - smaller files</option>
+                    <option value="image/webp">WEBP - compact web format</option>
+                    <option value="image/png">PNG - lossless</option>
+                  </select>
+                  <i data-lucide="chevron-down" class="select-arrow"></i>
+                </div>
+                <p class="option-desc">Choose the format you want after compression.</p>
+              </div>
+
+              <!-- Quality Control -->
+              <div class="option-group" id="qualityGroup">
                 <div class="option-label-row">
-                  <label for="qualitySlider">JPG Quality</label>
+                  <label for="qualitySlider">Output Quality</label>
                   <span class="option-value" id="qualityValue">90%</span>
                 </div>
                 <input type="range" id="qualitySlider" min="10" max="100" value="90" class="slider">
-                <p class="option-desc">Higher quality produces clearer images but larger file sizes.</p>
+                <p class="option-desc">Lower quality usually makes JPG and WEBP files smaller.</p>
               </div>
 
               <!-- Transparency Control -->
-              <div class="option-group">
+              <div class="option-group" id="transparencyGroup">
                 <label for="transparencyBg">PNG Transparency Fill</label>
                 <div class="select-wrapper">
                   <select id="transparencyBg" class="select-input">
@@ -149,7 +258,7 @@
                   <input type="color" id="customColorPicker" value="#ffffff" class="color-picker">
                   <span class="color-hex" id="customHex">#ffffff</span>
                 </div>
-                <p class="option-desc">Choose a background color to fill any transparent parts of your PNG.</p>
+                <p class="option-desc">Used when exporting transparent images to JPG.</p>
               </div>
             </div>
           </div>
@@ -158,7 +267,7 @@
           <div class="queue-section panel-hidden" id="queueSection">
             <div class="queue-header">
               <div class="queue-info">
-                <h3>Conversion Queue</h3>
+                <h3>Image Queue</h3>
                 <span class="queue-stats" id="queueStats">0 files • 0.0 KB</span>
               </div>
               <div class="queue-actions">
@@ -184,11 +293,11 @@
                 <div class="master-progress-bar" id="masterProgressBar" style="width: 0%"></div>
               </div>
               <div class="master-bar-inner">
-                <div class="master-status" id="masterStatus">Ready to convert</div>
+                <div class="master-status" id="masterStatus">Ready to compress</div>
                 <div class="master-buttons">
                   <button class="btn btn-primary" id="convertBtn">
-                    <i data-lucide="play"></i>
-                    <span>Convert All</span>
+                    <i data-lucide="minimize-2"></i>
+                    <span>Compress All</span>
                   </button>
                   <button class="btn btn-success" id="downloadAllBtn" disabled>
                     <i data-lucide="download"></i>
@@ -268,6 +377,16 @@
                   <i data-lucide="chevron-down" class="select-arrow"></i>
                 </div>
                 <p class="option-desc">Choose which corner or area to overlay the logo on.</p>
+              </div>
+
+              <!-- Edge Distance Slider -->
+              <div class="option-group">
+                <div class="option-label-row">
+                  <label for="logoEdgeDistanceSlider">Logo Edge Distance</label>
+                  <span class="option-value" id="logoEdgeDistanceValue">0px</span>
+                </div>
+                <input type="range" id="logoEdgeDistanceSlider" min="-100" max="200" value="0" class="slider">
+                <p class="option-desc">0px touches the edge; positive adds gap, negative nudges farther outward.</p>
               </div>
 
               <!-- Size scale Slider -->
