@@ -1,0 +1,79 @@
+.photo-editor { color: #172033; }
+.photo-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+.photo-file-details { min-width: 0; max-width: 100%; }
+.photo-file-details h3 { font-size: 1rem; overflow-wrap: anywhere; }
+.photo-file-details span { color: #667085; font-size: 0.8rem; }
+.photo-history-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.photo-history-actions .btn { padding: 9px 11px; font-size: 0.8rem; }
+.photo-history-actions svg { width: 16px; height: 16px; }
+.photo-layout { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 20px; align-items: start; }
+.photo-work-area { min-width: 0; }
+.photo-canvas-well { min-height: 280px; display: flex; justify-content: center; align-items: center; padding: 18px; border: 1px solid #e0e4ed; border-radius: 12px; background: #e9ecf2; }
+.photo-stage { position: relative; max-width: 100%; background-color: #fff; background-image: conic-gradient(#e3e5e9 25%, #fff 0 50%, #e3e5e9 0 75%, #fff 0); background-size: 20px 20px; box-shadow: 0 8px 28px #1720331c; }
+.photo-stage canvas { display: block; width: 100%; height: 100%; }
+#photo-overlay { position: absolute; inset: 0; touch-action: none; cursor: default; }
+#photo-overlay:focus-visible { outline: 3px solid #f05a4f; outline-offset: 3px; }
+.photo-canvas-hint { margin: 12px 0; color: #667085; text-align: center; font-size: 0.82rem; }
+.photo-export { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 16px; background: #fff; border: 1px solid #e0e4ed; border-radius: 10px; }
+.photo-export p { flex: 1 1 100%; font-size: 0.84rem; color: #667085; }
+.photo-export select { width: auto; flex: 1 1 180px; font-size: 0.82rem; }
+.photo-export .btn { flex: 1 1 180px; justify-content: center; }
+.photo-controls { border: 1px solid #e0e4ed; background: #fff; border-radius: 12px; overflow: hidden; position: sticky; top: 0; }
+.photo-tool-tabs { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid #e0e4ed; background: #fafbfc; }
+.photo-tool-tabs button { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 14px 6px; font: inherit; font-weight: 600; font-size: 0.82rem; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #667085; cursor: pointer; }
+.photo-tool-tabs svg { width: 16px; height: 16px; }
+.photo-tool-tabs button.active { color: #d13f32; background: #fff5f2; border-bottom-color: #ed594c; }
+.photo-tool-panel { padding: 18px; display: flex; flex-direction: column; gap: 12px; max-height: 72vh; overflow-y: auto; }
+.photo-section-heading h3 { font-size: 1rem; margin-bottom: 5px; }
+.photo-section-heading p, .photo-small-note { color: #667085; font-size: 0.8rem; line-height: 1.55; }
+.photo-tool-panel label { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.8rem; font-weight: 500; }
+.photo-tool-panel label > span { color: #667085; font-size: 0.76rem; }
+.photo-tool-panel .select-input, .photo-tool-panel .number-input, .photo-tool-panel textarea { width: 100%; font: inherit; font-size: 0.84rem; border: 1px solid #d8deea; border-radius: 7px; background: #fff; color: #172033; padding: 9px 10px; }
+.photo-tool-panel textarea { resize: vertical; min-height: 70px; }
+.photo-tool-panel fieldset { display: flex; flex-direction: column; gap: 12px; border: 0; min-width: 0; }
+.photo-tool-panel fieldset:disabled { opacity: 0.48; }
+.photo-tool-panel input[type="color"] { width: 100%; height: 35px; border: 1px solid #d8deea; border-radius: 6px; padding: 3px; background: #fff; cursor: pointer; }
+.photo-tool-panel input[type="checkbox"] { width: 15px; height: 15px; accent-color: #ed594c; }
+.photo-tool-panel .slider { width: 100%; margin: 0; }
+.photo-full-button { width: 100%; justify-content: center; padding: 10px; font-size: 0.84rem; }
+.photo-field-row { display: flex; gap: 10px; }
+.photo-field-row > * { flex: 1; min-width: 0; }
+.photo-field-row label { margin-bottom: 5px; }
+.photo-field-row .btn { padding: 8px; font-size: 0.8rem; justify-content: center; }
+.photo-checks { display: flex; flex-wrap: wrap; gap: 12px; }
+.photo-checks label { justify-content: start; }
+.photo-text-presets, .photo-frame-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.photo-text-presets button, .photo-frame-grid button { border: 1px solid #e0e4ed; background: #fafbfc; color: #172033; border-radius: 8px; cursor: pointer; padding: 12px 7px; text-align: center; font: inherit; min-width: 0; }
+.photo-text-presets button:hover, .photo-frame-grid button:hover { border-color: #ef998d; background: #fff7f4; }
+.photo-text-presets strong { display: block; font-size: 1.05rem; font-weight: 700; }
+.photo-text-presets span { display: block; font-size: 0.65rem; color: #7a8494; margin-top: 4px; }
+[data-photo-preset="editorial"] strong { font-family: 'Playfair Display', Georgia, serif; }
+[data-photo-preset="handwritten"] strong { font-family: 'Dancing Script', cursive; font-size: 1.27rem; }
+[data-photo-preset="poster"] strong { font-family: 'Bebas Neue', sans-serif; font-size: 1.35rem; letter-spacing: 0.1em; }
+[data-photo-preset="label"] strong { background: #253347; color: #fff; display: inline-block; padding: 1px 6px; font-size: 0.9rem; }
+[data-photo-preset="vintage"] strong { font-family: Georgia, serif; font-style: italic; color: #947538; }
+.photo-frame-grid button { padding: 6px; font-size: 0.75rem; }
+.photo-frame-grid img { display: block; width: 100%; height: auto; border-radius: 3px; margin-bottom: 5px; }
+.photo-frame-grid button[aria-pressed="true"] { border-color: #ed594c; background: #fff2ee; box-shadow: 0 0 0 1px #ed594c; }
+.photo-selection-info { background: #f6f8fb; border: 1px dashed #cfd7e5; padding: 14px; border-radius: 8px; font-size: 0.8rem; color: #667085; }
+.photo-blur-list-title { font-size: 0.82rem; margin-top: 8px; }
+.photo-blur-list { display: flex; flex-direction: column; gap: 8px; }
+.photo-blur-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 9px; background: #f6f8fb; border-radius: 6px; font-size: 0.78rem; }
+.photo-blur-row button { font: inherit; color: #b9382f; border: 0; background: transparent; cursor: pointer; }
+.photo-editor button:focus-visible, .photo-editor input:focus-visible, .photo-editor textarea:focus-visible, .photo-editor select:focus-visible { outline: 2px solid #ed594c; outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.photo-tool-tabs button { gap: 4px; font-size: .75rem; }
+.photo-tool-tabs svg { width: 14px; height: 14px; }
+.photo-style-details summary { cursor: pointer; font-size: .82rem; font-weight: 600; padding: 8px 0; }
+.photo-tool-panel .photo-group-option, .photo-tool-panel .photo-compare-option { justify-content: flex-start; }
+.photo-selection-info[data-preview="true"] { border-color: #ed594c; background: #fff5f2; color: #ac3a30; }
+.photo-frame-grid button[hidden] { display: none; }
+.photo-tool-panel h4 { font-size: .84rem; }
+.photo-style-details .photo-frame-grid { margin: 10px 0; }
+#photo-framePresets { max-height: 340px; overflow-y: auto; padding: 2px; }
+#photo-textPresets { max-height: 320px; overflow-y: auto; padding: 2px; }
+.photo-single-style-grid button span { font-size: .72rem; }
+@media (max-width: 1000px) { #photo-framePresets { max-height: 420px; } }
+@media (max-width: 1180px) { .photo-layout { grid-template-columns: minmax(0, 1fr) 280px; gap: 12px; } .photo-canvas-well { padding: 10px; } }
+@media (max-width: 1000px) { .photo-layout { grid-template-columns: 1fr; } .photo-controls { position: static; } .photo-tool-panel { max-height: none; } .photo-text-presets, .photo-frame-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 520px) { .photo-canvas-well { min-height: 180px; padding: 8px; } .photo-text-presets, .photo-frame-grid { grid-template-columns: repeat(2, 1fr); } .photo-history-actions { width: 100%; } .photo-history-actions .btn { flex: 1 1 40%; justify-content: center; } .photo-export { padding: 12px; } .photo-toolbar { gap: 12px; } }

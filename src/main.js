@@ -1,5 +1,8 @@
 import Cropper from 'cropperjs';
 import 'cropperjs/dist/cropper.css';
+import { initBackgroundRemoval } from './remove-background-ui.js';
+import { initUpscaleImage } from './upscale-ui.js';
+import { initPhotoEditor } from './photo-editor-ui.js';
 import {
   applyLogo,
   calculateLogoPlacement,
@@ -11,7 +14,6 @@ import {
   getImageOutputExtension,
   imageFormatNeedsBackgroundFill,
   imageFormatUsesQuality,
-  removeGeminiWatermark,
   extractImageUrls
 } from './utils.js';
 
@@ -39,10 +41,6 @@ const LS_LOGO_POSITION = 'imgconv_logo_position';
 const LS_LOGO_EDGE_DISTANCE = 'imgconv_logo_edge_distance';
 const LS_LOGO_FORMAT = 'imgconv_logo_format';
 const LS_LOGO_QUALITY = 'imgconv_logo_quality';
-
-// Remove Gemini Logo State
-let geminiQueue = [];
-let isGeminiConverting = false;
 
 // Crop Image State
 let cropper = null;
@@ -129,21 +127,6 @@ const logoMasterStatus = document.getElementById('logo-masterStatus');
 const logoConvertBtn = document.getElementById('logo-convertBtn');
 const logoDownloadAllBtn = document.getElementById('logo-downloadAllBtn');
 
-// Remove Gemini Logo Elements
-const geminiDropzone = document.getElementById('gemini-dropzone');
-const geminiFileInput = document.getElementById('gemini-fileInput');
-const geminiOptionsPanel = document.getElementById('gemini-optionsPanel');
-const geminiPasses = document.getElementById('geminiPasses');
-const geminiQueueSection = document.getElementById('gemini-queueSection');
-const geminiQueueStats = document.getElementById('gemini-queueStats');
-const geminiClearQueueBtn = document.getElementById('gemini-clearQueueBtn');
-const geminiAddMoreBtn = document.getElementById('gemini-addMoreBtn');
-const geminiQueueGrid = document.getElementById('gemini-queueGrid');
-const geminiMasterProgressBar = document.getElementById('gemini-masterProgressBar');
-const geminiMasterStatus = document.getElementById('gemini-masterStatus');
-const geminiConvertBtn = document.getElementById('gemini-convertBtn');
-const geminiDownloadAllBtn = document.getElementById('gemini-downloadAllBtn');
-
 // Crop Image Elements
 const cropDropzone = document.getElementById('crop-dropzone');
 const cropFileInput = document.getElementById('crop-fileInput');
@@ -218,6 +201,9 @@ let pngBgColor = '#ffffff';
 // INITIALIZATION
 // ==========================================
 function init() {
+  initBackgroundRemoval();
+  initUpscaleImage();
+  initPhotoEditor();
   // Navigation Routing
   navItems.forEach(item => {
     item.addEventListener('click', (e) => {
@@ -348,23 +334,6 @@ function init() {
   logoAddMoreBtn.addEventListener('click', () => logoFileInput.click());
   logoConvertBtn.addEventListener('click', convertLogoAll);
   logoDownloadAllBtn.addEventListener('click', downloadLogoAll);
-
-  // ----------------------------------------
-  // TAB 3: REMOVE GEMINI LOGO LISTENERS
-  // ----------------------------------------
-  geminiDropzone.addEventListener('dragover', handleGeminiDragOver);
-  geminiDropzone.addEventListener('dragenter', handleGeminiDragOver);
-  geminiDropzone.addEventListener('dragleave', handleGeminiDragLeave);
-  geminiDropzone.addEventListener('dragend', handleGeminiDragLeave);
-  geminiDropzone.addEventListener('drop', handleGeminiDrop);
-  geminiDropzone.addEventListener('click', () => geminiFileInput.click());
-  geminiFileInput.addEventListener('change', handleGeminiFileSelect);
-
-  geminiPasses.addEventListener('change', resetGeminiQueueForReconvert);
-  geminiClearQueueBtn.addEventListener('click', clearGeminiQueue);
-  geminiAddMoreBtn.addEventListener('click', () => geminiFileInput.click());
-  geminiConvertBtn.addEventListener('click', convertGeminiAll);
-  geminiDownloadAllBtn.addEventListener('click', downloadGeminiAll);
 
   // ----------------------------------------
   // TAB 4: CROP IMAGE LISTENERS
@@ -1181,307 +1150,6 @@ async function downloadLogoAll() {
     setTimeout(() => {
       logoMasterStatus.textContent = originalText;
       logoDownloadAllBtn.disabled = false;
-    }, 3000);
-  }
-}
-
-// ==========================================
-// TAB 3: REMOVE GEMINI LOGO PROCESSORS
-// ==========================================
-function handleGeminiDragOver(e) {
-  e.preventDefault();
-  geminiDropzone.classList.add('dragover');
-}
-
-function handleGeminiDragLeave(e) {
-  e.preventDefault();
-  geminiDropzone.classList.remove('dragover');
-}
-
-function handleGeminiDrop(e) {
-  e.preventDefault();
-  geminiDropzone.classList.remove('dragover');
-  const files = e.dataTransfer.files;
-  if (files.length > 0) processGeminiFiles(files);
-}
-
-function handleGeminiFileSelect(e) {
-  const files = e.target.files;
-  if (files.length > 0) processGeminiFiles(files);
-  geminiFileInput.value = '';
-}
-
-function processGeminiFiles(filesList) {
-  const maxLimit = 50 * 1024 * 1024;
-  const validFormats = ['png', 'jpg', 'jpeg', 'webp'];
-  let addedAny = false;
-
-  Array.from(filesList).forEach((file) => {
-    const ext = getExtension(file.name);
-
-    if (!validFormats.includes(ext)) {
-      alert(`Format error: "${file.name}" is not supported. Please upload PNG, JPG, JPEG, or WEBP images.`);
-      return;
-    }
-
-    if (file.size > maxLimit) {
-      alert(`Size limit error: "${file.name}" exceeds the 50MB maximum size.`);
-      return;
-    }
-
-    const isDuplicate = geminiQueue.some(item => item.file.name === file.name && item.file.size === file.size);
-    if (isDuplicate) return;
-
-    const extIndex = file.name.lastIndexOf('.');
-    const baseName = extIndex !== -1 ? file.name.substring(0, extIndex) : file.name;
-    const localThumbUrl = URL.createObjectURL(file);
-
-    const item = {
-      id: Math.random().toString(36).substring(2, 11),
-      file,
-      name: `${baseName}-gemini-clean`,
-      ext,
-      size: file.size,
-      status: 'pending',
-      progress: 0,
-      localThumbUrl,
-      outputBlob: null,
-      outputUrl: null,
-      outputFormat: 'png',
-      errorMessage: null
-    };
-
-    geminiQueue.push(item);
-    renderFileCard(item, geminiQueueGrid, geminiQueue, removeGeminiFile, downloadGeminiIndividual);
-    addedAny = true;
-  });
-
-  if (addedAny) {
-    updateGeminiLayoutVisibility();
-    updateGeminiQueueStats();
-  }
-}
-
-function updateGeminiLayoutVisibility() {
-  if (geminiQueue.length > 0) {
-    geminiDropzone.classList.add('panel-hidden');
-    geminiOptionsPanel.classList.remove('panel-hidden');
-    geminiQueueSection.classList.remove('panel-hidden');
-  } else {
-    geminiDropzone.classList.remove('panel-hidden');
-    geminiOptionsPanel.classList.add('panel-hidden');
-    geminiQueueSection.classList.add('panel-hidden');
-  }
-}
-
-function updateGeminiQueueStats() {
-  const count = geminiQueue.length;
-  const totalSize = geminiQueue.reduce((acc, item) => acc + item.size, 0);
-  geminiQueueStats.textContent = `${count} file${count > 1 ? 's' : ''} - ${formatBytes(totalSize)}`;
-  geminiConvertBtn.disabled = isGeminiConverting || !geminiQueue.some(item => item.status === 'pending');
-}
-
-function removeGeminiFile(id) {
-  const index = geminiQueue.findIndex(item => item.id === id);
-  if (index === -1) return;
-
-  const item = geminiQueue[index];
-  if (item.localThumbUrl) URL.revokeObjectURL(item.localThumbUrl);
-  if (item.outputUrl) URL.revokeObjectURL(item.outputUrl);
-
-  geminiQueue.splice(index, 1);
-  const card = geminiQueueGrid.querySelector(`[data-id="${id}"]`);
-  if (card) card.remove();
-
-  updateGeminiLayoutVisibility();
-  updateGeminiQueueStats();
-  updateGeminiMasterProgress();
-}
-
-function clearGeminiQueue() {
-  if (isGeminiConverting) return;
-
-  geminiQueue.forEach((item) => {
-    if (item.localThumbUrl) URL.revokeObjectURL(item.localThumbUrl);
-    if (item.outputUrl) URL.revokeObjectURL(item.outputUrl);
-  });
-
-  geminiQueue = [];
-  geminiQueueGrid.innerHTML = '';
-
-  updateGeminiLayoutVisibility();
-  updateGeminiQueueStats();
-  updateGeminiMasterProgress();
-
-  geminiMasterStatus.textContent = 'Ready to remove Gemini logo';
-  geminiMasterStatus.className = 'master-status';
-}
-
-function updateGeminiMasterProgress() {
-  const total = geminiQueue.length;
-  if (total === 0) {
-    geminiMasterProgressBar.style.width = '0%';
-    geminiDownloadAllBtn.disabled = true;
-    return;
-  }
-
-  const completed = geminiQueue.filter(item => item.status === 'done' || item.status === 'error').length;
-  const percentage = (completed / total) * 100;
-  geminiMasterProgressBar.style.width = `${percentage}%`;
-
-  const successCount = geminiQueue.filter(item => item.status === 'done').length;
-  geminiDownloadAllBtn.disabled = successCount === 0 || isGeminiConverting;
-}
-
-function resetGeminiQueueForReconvert() {
-  if (isGeminiConverting) return;
-
-  let changed = false;
-  geminiQueue.forEach((item) => {
-    if (item.status === 'done' || item.status === 'error') {
-      item.status = 'pending';
-      item.progress = 0;
-      if (item.outputUrl) URL.revokeObjectURL(item.outputUrl);
-      item.outputBlob = null;
-      item.outputUrl = null;
-      item.errorMessage = null;
-      updateFileCardUI(item, geminiQueueGrid);
-      changed = true;
-    }
-  });
-
-  if (changed) {
-    geminiMasterStatus.textContent = 'Settings adjusted. Ready to remove again.';
-    geminiMasterStatus.className = 'master-status';
-    updateGeminiQueueStats();
-    updateGeminiMasterProgress();
-  }
-}
-
-async function convertGeminiAll() {
-  const pendingItems = geminiQueue.filter(item => item.status === 'pending');
-  if (pendingItems.length === 0 || isGeminiConverting) return;
-
-  isGeminiConverting = true;
-  geminiConvertBtn.disabled = true;
-  geminiClearQueueBtn.disabled = true;
-  geminiDownloadAllBtn.disabled = true;
-  geminiPasses.disabled = true;
-
-  const maxPasses = parseInt(geminiPasses.value, 10);
-
-  geminiMasterStatus.textContent = 'Removing Gemini logo watermarks...';
-  geminiMasterStatus.classList.add('pulse');
-
-  for (let i = 0; i < pendingItems.length; i++) {
-    const item = pendingItems[i];
-    item.status = 'converting';
-    item.progress = 45;
-    updateFileCardUI(item, geminiQueueGrid);
-
-    try {
-      const { blob, meta } = await removeGeminiWatermark(item.file, { maxPasses });
-      item.progress = 100;
-      item.outputBlob = blob;
-      item.outputUrl = URL.createObjectURL(blob);
-      item.outputFormat = 'png';
-      item.geminiMeta = meta;
-
-      // If the library found and applied a watermark removal, mark as done.
-      // If meta.applied is false, the image had no detectable Gemini logo —
-      // still mark as 'done' so the user can download, but store a note.
-      if (meta && meta.applied === false) {
-        item.status = 'done';
-        item.noWatermark = true;
-        item.errorMessage = meta.skipReason === 'no-watermark-detected'
-          ? 'No Gemini logo detected — original returned'
-          : 'Watermark removal skipped — original returned';
-      } else {
-        item.status = 'done';
-        item.noWatermark = false;
-      }
-    } catch (err) {
-      console.error(err);
-      item.status = 'error';
-      item.errorMessage = err.message || 'Watermark removal failed';
-    }
-
-    updateFileCardUI(item, geminiQueueGrid);
-    updateGeminiMasterProgress();
-  }
-
-  isGeminiConverting = false;
-  geminiClearQueueBtn.disabled = false;
-  geminiConvertBtn.disabled = !geminiQueue.some(item => item.status === 'pending');
-  geminiPasses.disabled = false;
-
-  geminiMasterStatus.classList.remove('pulse');
-
-  const successCount = geminiQueue.filter(item => item.status === 'done' && !item.noWatermark).length;
-  const noWatermarkCount = geminiQueue.filter(item => item.status === 'done' && item.noWatermark).length;
-  const failCount = geminiQueue.filter(item => item.status === 'error').length;
-
-  if (failCount === 0 && noWatermarkCount === 0) {
-    geminiMasterStatus.textContent = `Successfully cleaned ${successCount} image${successCount > 1 ? 's' : ''}!`;
-  } else if (failCount === 0) {
-    const parts = [];
-    if (successCount > 0) parts.push(`${successCount} cleaned`);
-    if (noWatermarkCount > 0) parts.push(`${noWatermarkCount} had no Gemini logo`);
-    geminiMasterStatus.textContent = `Completed: ${parts.join(', ')}.`;
-  } else {
-    geminiMasterStatus.textContent = `Completed: ${successCount} cleaned, ${noWatermarkCount} no logo found, ${failCount} failed.`;
-  }
-
-  updateGeminiMasterProgress();
-}
-
-function downloadGeminiIndividual(item) {
-  if (item.status !== 'done' || !item.outputUrl) return;
-
-  const a = document.createElement('a');
-  a.href = item.outputUrl;
-  a.download = `${item.name}.png`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-}
-
-async function downloadGeminiAll() {
-  const successItems = geminiQueue.filter(item => item.status === 'done' && item.outputBlob);
-  if (successItems.length === 0) return;
-
-  if (successItems.length === 1) {
-    downloadGeminiIndividual(successItems[0]);
-    return;
-  }
-
-  const originalText = geminiMasterStatus.textContent;
-  geminiMasterStatus.textContent = 'Generating ZIP archive...';
-  geminiMasterStatus.classList.add('pulse');
-  geminiDownloadAllBtn.disabled = true;
-
-  try {
-    const zipBlob = await createZip(successItems);
-    const zipUrl = URL.createObjectURL(zipBlob);
-
-    const a = document.createElement('a');
-    a.href = zipUrl;
-    a.download = 'ImgConvert-Gemini-Clean-Pack.zip';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-
-    setTimeout(() => URL.revokeObjectURL(zipUrl), 1000);
-    geminiMasterStatus.textContent = 'ZIP download completed!';
-  } catch (err) {
-    console.error(err);
-    alert('Failed to generate ZIP archive: ' + err.message);
-    geminiMasterStatus.textContent = 'ZIP creation failed.';
-  } finally {
-    geminiMasterStatus.classList.remove('pulse');
-    setTimeout(() => {
-      geminiMasterStatus.textContent = originalText;
-      geminiDownloadAllBtn.disabled = false;
     }, 3000);
   }
 }
@@ -2386,7 +2054,7 @@ function renderFileCard(item, gridElement, queueArray, removeCallback, downloadC
   // Card Controls
   card.querySelector('.card-remove-btn').onclick = (e) => {
     e.stopPropagation();
-    if (isPngConverting || isLogoConverting || isGeminiConverting) return;
+    if (isPngConverting || isLogoConverting) return;
     removeCallback(item.id);
   };
 
@@ -2589,16 +2257,9 @@ function updateFileCardUI(item, gridElement) {
       savingsEl.classList.add('hidden');
     }
 
-    if (item.noWatermark) {
-      // No Gemini logo was detected — show amber warning badge but still allow download
-      badge.textContent = 'No Logo';
-      badge.classList.add('badge-warn');
-      badge.setAttribute('title', item.errorMessage || 'No Gemini logo detected — original returned');
-    } else {
-      const extName = item.outputFormat ? item.outputFormat.toUpperCase() : 'JPG';
-      badge.textContent = extName;
-      badge.classList.add('badge-done');
-    }
+    const extName = item.outputFormat ? item.outputFormat.toUpperCase() : 'JPG';
+    badge.textContent = extName;
+    badge.classList.add('badge-done');
 
     downloadBtn.disabled = false;
   } else if (item.status === 'error') {
@@ -2619,10 +2280,6 @@ window.addEventListener('beforeunload', () => {
     if (item.outputUrl) URL.revokeObjectURL(item.outputUrl);
   });
   logoQueue.forEach(item => {
-    if (item.localThumbUrl) URL.revokeObjectURL(item.localThumbUrl);
-    if (item.outputUrl) URL.revokeObjectURL(item.outputUrl);
-  });
-  geminiQueue.forEach(item => {
     if (item.localThumbUrl) URL.revokeObjectURL(item.localThumbUrl);
     if (item.outputUrl) URL.revokeObjectURL(item.outputUrl);
   });

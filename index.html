@@ -44,14 +44,21 @@
           <i data-lucide="award"></i>
           <span>Add Logo</span>
         </a>
-        <a href="#" class="nav-item" data-tab="remove-gemini">
-          <i data-lucide="eraser"></i>
-          <span>Remove Gemini Logo</span>
-          <span class="badge badge-active">Bulk</span>
-        </a>
         <a href="#" class="nav-item" data-tab="crop-image">
           <i data-lucide="crop"></i>
           <span>Crop Image</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="remove-background">
+          <i data-lucide="scan-face"></i>
+          <span>Remove Background</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="upscale-image">
+          <i data-lucide="expand"></i>
+          <span>Upscale Image</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="photo-editor">
+          <i data-lucide="palette"></i>
+          <span>Photo Editor</span>
         </a>
         <a href="#" class="nav-item" data-tab="bulk-download">
           <i data-lucide="download-cloud"></i>
@@ -72,7 +79,7 @@
           <i data-lucide="shield-check"></i>
           <div>
             <h3>100% Private</h3>
-            <p>All processing is done offline in your browser. No files are uploaded.</p>
+            <p>Images are processed in your browser. No files are uploaded.</p>
           </div>
         </div>
       </div>
@@ -104,7 +111,7 @@
             <h3>Fast image workflow</h3>
             <p>Upload, adjust, process, and download without sending files to a server.</p>
             <div class="summary-row">
-              <span>7 tools ready</span>
+              <span>9 tools ready</span>
               <span>Browser only</span>
             </div>
           </div>
@@ -131,16 +138,28 @@
               <span class="tool-card-desc">Apply your logo watermark to product photos with saved size and position settings.</span>
               <span class="tool-card-link">Open tool</span>
             </button>
-            <button type="button" class="tool-card" data-tab-target="remove-gemini">
-              <i data-lucide="eraser"></i>
-              <span class="tool-card-title">Remove Gemini Logo</span>
-              <span class="tool-card-desc">Clean Gemini's visible bottom-right logo mark from images in bulk.</span>
-              <span class="tool-card-link">Open tool</span>
-            </button>
             <button type="button" class="tool-card" data-tab-target="crop-image">
               <i data-lucide="crop"></i>
               <span class="tool-card-title">Crop Image</span>
               <span class="tool-card-desc">Crop one image visually or by exact pixel width, height, X, and Y values.</span>
+              <span class="tool-card-link">Open tool</span>
+            </button>
+            <button type="button" class="tool-card" data-tab-target="remove-background">
+              <i data-lucide="scan-face"></i>
+              <span class="tool-card-title">Remove Background</span>
+              <span class="tool-card-desc">Cut out a JPG or PNG image, compare the result, and save a transparent PNG.</span>
+              <span class="tool-card-link">Open tool</span>
+            </button>
+            <button type="button" class="tool-card" data-tab-target="upscale-image">
+              <i data-lucide="expand"></i>
+              <span class="tool-card-title">Upscale Image</span>
+              <span class="tool-card-desc">Enhance image resolution with AI at 2× or 4×, compare detail, and download a PNG.</span>
+              <span class="tool-card-link">Open tool</span>
+            </button>
+            <button type="button" class="tool-card" data-tab-target="photo-editor">
+              <i data-lucide="palette"></i>
+              <span class="tool-card-title">Photo Editor</span>
+              <span class="tool-card-desc">Create with editable text layouts, vintage and floral frames, live blur previews, and cropping.</span>
               <span class="tool-card-link">Open tool</span>
             </button>
             <button type="button" class="tool-card" data-tab-target="bulk-download">
@@ -476,107 +495,6 @@
         </div>
       </div>
 
-      <!-- Panel 3: Remove Gemini Logo Watermark -->
-      <div class="tab-panel hidden" id="panel-remove-gemini">
-        <header class="workspace-header">
-          <div class="header-title">
-            <h2>Remove Gemini Logo Watermark</h2>
-            <p>Batch remove Gemini's visible bottom-right logo watermark locally.</p>
-          </div>
-        </header>
-
-        <div class="workspace-content">
-          <!-- Drag & Drop Container -->
-          <div class="dropzone" id="gemini-dropzone">
-            <input type="file" id="gemini-fileInput" multiple accept=".png,.jpg,.jpeg,.webp" class="file-input-hidden">
-            <div class="dropzone-inner">
-              <div class="upload-icon-container">
-                <i data-lucide="eraser" class="upload-icon"></i>
-              </div>
-              <h3>Drag and drop Gemini images here</h3>
-              <p class="dropzone-subtitle">or <span class="browse-link">browse files</span> from your computer</p>
-              <p class="dropzone-formats">Supports PNG, JPG, JPEG, and WEBP files (max 50MB per file)</p>
-            </div>
-          </div>
-
-          <!-- Options Panel (Hidden until files are added) -->
-          <div class="options-card panel-hidden" id="gemini-optionsPanel">
-            <div class="options-header">
-              <i data-lucide="sliders"></i>
-              <h3>Removal Settings</h3>
-            </div>
-            <div class="options-grid">
-              <div class="option-group">
-                <label for="geminiPasses">Cleanup Strength</label>
-                <div class="select-wrapper">
-                  <select id="geminiPasses" class="select-input">
-                    <option value="3">Balanced</option>
-                    <option value="4" selected>Thorough</option>
-                    <option value="6">Extra Passes</option>
-                  </select>
-                  <i data-lucide="chevron-down" class="select-arrow"></i>
-                </div>
-                <p class="option-desc">Use more passes for stubborn visible logo edges.</p>
-              </div>
-
-              <div class="option-group">
-                <label>Output</label>
-                <div class="static-option">
-                  <i data-lucide="file-image"></i>
-                  <span>PNG files with cleaned pixels</span>
-                </div>
-                <p class="option-desc">Targets only Gemini's visible logo watermark, not invisible SynthID metadata.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Queue Section (Hidden until files are added) -->
-          <div class="queue-section panel-hidden" id="gemini-queueSection">
-            <div class="queue-header">
-              <div class="queue-info">
-                <h3>Gemini Images Queue</h3>
-                <span class="queue-stats" id="gemini-queueStats">0 files - 0.0 KB</span>
-              </div>
-              <div class="queue-actions">
-                <button class="btn btn-outline" id="gemini-clearQueueBtn">
-                  <i data-lucide="trash-2"></i>
-                  <span>Clear All</span>
-                </button>
-                <button class="btn btn-outline" id="gemini-addMoreBtn">
-                  <i data-lucide="plus"></i>
-                  <span>Add Files</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- Queue List Grid -->
-            <div class="queue-grid" id="gemini-queueGrid">
-              <!-- File Cards injected here -->
-            </div>
-
-            <!-- Master Control Bar -->
-            <div class="master-bar">
-              <div class="master-progress-container">
-                <div class="master-progress-bar" id="gemini-masterProgressBar" style="width: 0%"></div>
-              </div>
-              <div class="master-bar-inner">
-                <div class="master-status" id="gemini-masterStatus">Ready to remove Gemini logo</div>
-                <div class="master-buttons">
-                  <button class="btn btn-primary" id="gemini-convertBtn" disabled>
-                    <i data-lucide="eraser"></i>
-                    <span>Remove From All</span>
-                  </button>
-                  <button class="btn btn-success" id="gemini-downloadAllBtn" disabled>
-                    <i data-lucide="download"></i>
-                    <span>Download All (.zip)</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- Panel 4: Crop Image -->
       <div class="tab-panel hidden" id="panel-crop-image">
         <header class="workspace-header">
@@ -670,6 +588,228 @@
                 </button>
               </div>
             </aside>
+          </section>
+        </div>
+      </div>
+
+      <!-- Remove Background -->
+      <div class="tab-panel hidden" id="panel-remove-background">
+        <header class="workspace-header">
+          <div class="header-title">
+            <h2>Remove Background</h2>
+            <p>Cut out the background of a JPG or PNG image, inspect the edge, and download a transparent PNG.</p>
+          </div>
+        </header>
+
+        <div class="workspace-content">
+          <div class="dropzone" id="remove-bg-dropzone">
+            <input type="file" id="remove-bg-fileInput" accept=".jpg,.jpeg,.png,image/jpeg,image/png" class="file-input-hidden">
+            <div class="dropzone-inner">
+              <div class="upload-icon-container"><i data-lucide="scan-face" class="upload-icon"></i></div>
+              <h3>Drag and drop an image here</h3>
+              <p class="dropzone-subtitle">or <span class="browse-link">browse files</span> from your computer</p>
+              <p class="dropzone-formats">JPG or PNG, up to 50MB. The image stays in your browser.</p>
+            </div>
+          </div>
+
+          <section class="remove-bg-editor panel-hidden" id="remove-bg-editor">
+            <div class="remove-bg-toolbar">
+              <div class="crop-file-details">
+                <h3 id="remove-bg-fileName"></h3>
+                <span id="remove-bg-imageMeta"></span>
+              </div>
+              <button type="button" class="btn btn-outline" id="remove-bg-changeBtn">
+                <i data-lucide="replace"></i><span>Change Image</span>
+              </button>
+            </div>
+
+            <div class="remove-bg-stage" id="remove-bg-stage" style="--split: 50%">
+              <img id="remove-bg-resultImage" class="remove-bg-image" alt="Image with transparent background">
+              <img id="remove-bg-originalImage" class="remove-bg-image remove-bg-original" alt="Original image">
+              <div class="remove-bg-divider" aria-hidden="true"><span><i data-lucide="move-horizontal"></i></span></div>
+              <span class="remove-bg-label remove-bg-label-before">Original</span>
+              <span class="remove-bg-label remove-bg-label-after">Background removed</span>
+              <input type="range" id="remove-bg-compare" class="remove-bg-compare" min="0" max="100" value="50" aria-label="Compare original and background removed images" disabled>
+              <div class="remove-bg-pending" id="remove-bg-pending">Your preview will appear here</div>
+            </div>
+            <p class="remove-bg-hint">Drag the divider left or right to check the cutout edge.</p>
+            <div class="remove-bg-footer">
+              <p id="remove-bg-status" class="crop-status" role="status" aria-live="polite">Preparing image...</p>
+              <button type="button" class="btn btn-primary" id="remove-bg-downloadBtn" disabled>
+                <i data-lucide="download"></i><span>Download PNG</span>
+              </button>
+            </div>
+            <p class="remove-bg-model-note">The cutout runs on your device. The first use downloads the image model and may take a moment.</p>
+          </section>
+        </div>
+      </div>
+
+      <div class="tab-panel hidden" id="panel-upscale-image">
+        <header class="workspace-header">
+          <div class="header-title">
+            <h2>Upscale Image</h2>
+            <p>Increase the resolution of your images with AI. Choose 2× or 4×, inspect the enhanced detail, and download.</p>
+          </div>
+        </header>
+        <div class="workspace-content">
+          <div class="dropzone" id="upscale-dropzone">
+            <input type="file" id="upscale-fileInput" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="file-input-hidden">
+            <div class="dropzone-inner">
+              <div class="upload-icon-container"><i data-lucide="expand" class="upload-icon"></i></div>
+              <h3>Drag and drop an image here</h3>
+              <p class="dropzone-subtitle">or <span class="browse-link">browse files</span> from your computer</p>
+              <p class="dropzone-formats" role="status">JPG, PNG, or WEBP · up to 50MB and 6 megapixels</p>
+            </div>
+          </div>
+          <section class="remove-bg-editor panel-hidden" id="upscale-editor">
+            <div class="remove-bg-toolbar">
+              <div class="crop-file-details"><h3 id="upscale-fileName"></h3><span id="upscale-imageMeta"></span></div>
+              <button type="button" class="btn btn-outline" id="upscale-changeBtn"><i data-lucide="replace"></i><span>Change Image</span></button>
+            </div>
+            <div class="options-card upscale-controls">
+              <div class="option-group">
+                <label for="upscale-scale">Size multiplier</label>
+                <select id="upscale-scale" class="select-input"><option value="2">2× resolution</option><option value="4">4× resolution</option></select>
+              </div>
+              <div class="upscale-dimensions"><span>Output size</span><strong id="upscale-outputSize"></strong></div>
+              <button type="button" class="btn btn-primary" id="upscale-processBtn"><i data-lucide="sparkles"></i><span>Upscale Image</span></button>
+              <button type="button" class="btn btn-outline panel-hidden" id="upscale-cancelBtn">Cancel</button>
+            </div>
+            <div class="upscale-preview-wrap" id="upscale-previewWrap">
+              <div class="remove-bg-stage" id="upscale-stage" style="--split: 100%">
+                <img id="upscale-resultImage" class="remove-bg-image" alt="AI upscaled image">
+                <img id="upscale-originalImage" class="remove-bg-image remove-bg-original" alt="Original image">
+                <div class="remove-bg-divider panel-hidden" id="upscale-divider" aria-hidden="true"><span><i data-lucide="move-horizontal"></i></span></div>
+                <span class="remove-bg-label remove-bg-label-before">Original</span>
+                <span class="remove-bg-label remove-bg-label-after panel-hidden" id="upscale-afterLabel">Upscaled</span>
+                <input type="range" id="upscale-compare" class="remove-bg-compare panel-hidden" min="0" max="100" value="50" aria-label="Compare original and upscaled image" disabled>
+              </div>
+            </div>
+            <label class="upscale-actual-size"><input type="checkbox" id="upscale-actualSize"> View actual pixels <span>Scroll to inspect fine detail</span></label>
+            <progress id="upscale-progress" max="100" value="0" class="upscale-progress panel-hidden" aria-label="Upscaling progress"></progress>
+            <div class="remove-bg-footer">
+              <p id="upscale-status" class="crop-status" role="status" aria-live="polite">Choose a multiplier, then click Upscale Image.</p>
+              <button type="button" class="btn btn-primary" id="upscale-downloadBtn" disabled><i data-lucide="download"></i><span>Download PNG</span></button>
+            </div>
+            <p class="remove-bg-model-note">AI processing stays in your browser. The model downloads when first used. Larger images take longer; output is limited to 32 megapixels and 8192 pixels per side.</p>
+          </section>
+        </div>
+      </div>
+
+      <div class="tab-panel hidden" id="panel-photo-editor">
+        <header class="workspace-header">
+          <div class="header-title"><h2>Photo Editor</h2><p>Style your photos with ready-made text layouts, vintage and floral frames, live blur previews, and easy cropping.</p></div>
+        </header>
+        <div class="workspace-content">
+          <div class="dropzone" id="photo-dropzone">
+            <input type="file" id="photo-fileInput" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="file-input-hidden">
+            <div class="dropzone-inner">
+              <div class="upload-icon-container"><i data-lucide="palette" class="upload-icon"></i></div>
+              <h3>Start with a photo</h3>
+              <p class="dropzone-subtitle">Drag it here or <span class="browse-link">browse files</span></p>
+              <p class="dropzone-formats" role="status">JPG, PNG, or WEBP · up to 50MB</p>
+            </div>
+          </div>
+          <section class="photo-editor panel-hidden" id="photo-editor">
+            <div class="photo-toolbar">
+              <div class="photo-file-details"><h3 id="photo-fileName"></h3><span id="photo-meta"></span></div>
+              <div class="photo-history-actions">
+                <button type="button" class="btn btn-outline" id="photo-undo" disabled title="Undo"><i data-lucide="undo-2"></i><span>Undo</span></button>
+                <button type="button" class="btn btn-outline" id="photo-redo" disabled title="Redo"><i data-lucide="redo-2"></i><span>Redo</span></button>
+                <button type="button" class="btn btn-outline" id="photo-reset">Reset edits</button>
+                <button type="button" class="btn btn-outline" id="photo-change">Change photo</button>
+              </div>
+            </div>
+            <div class="photo-layout">
+              <div class="photo-work-area">
+                <div class="photo-canvas-well">
+                  <div class="photo-stage" id="photo-stage">
+                    <canvas id="photo-canvas" aria-label="Edited photo preview"></canvas>
+                    <canvas id="photo-overlay" tabindex="0" aria-label="Photo editing canvas. Drag text to move it. In Blur mode, drag a rectangle to select an area. Arrow keys move selected text."></canvas>
+                  </div>
+                </div>
+                <p class="photo-canvas-hint" id="photo-hint">Add a text layer, then drag it on the photo to position it.</p>
+                <div class="photo-export">
+                  <p id="photo-status" role="status" aria-live="polite">Your photo stays in this browser.</p>
+                  <label class="sr-only" for="photo-exportFormat">Download format</label>
+                  <select id="photo-exportFormat" class="select-input"><option value="image/png">PNG · keep transparency</option><option value="image/jpeg">JPG · white background</option></select>
+                  <button type="button" class="btn btn-primary" id="photo-download"><i data-lucide="download"></i><span>Download photo</span></button>
+                </div>
+              </div>
+              <aside class="photo-controls">
+                <div class="photo-tool-tabs" role="tablist" aria-label="Photo editing tools">
+                  <button type="button" class="active" data-photo-tool="text" role="tab" aria-selected="true" aria-controls="photo-tool-text"><i data-lucide="type"></i>Text</button>
+                  <button type="button" data-photo-tool="frames" role="tab" aria-selected="false" aria-controls="photo-tool-frames"><i data-lucide="frame"></i>Frames</button>
+                  <button type="button" data-photo-tool="blur" role="tab" aria-selected="false" aria-controls="photo-tool-blur"><i data-lucide="scan"></i>Blur</button>
+                  <button type="button" data-photo-tool="crop" role="tab" aria-selected="false" aria-controls="photo-tool-crop"><i data-lucide="crop"></i>Crop</button>
+                </div>
+                <div class="photo-tool-panel" id="photo-tool-text" role="tabpanel">
+                  <div class="photo-section-heading"><h3>Say it your way</h3><p>Choose a look, then make it your own.</p></div>
+                  <details class="photo-style-details" id="photo-styleGallery" open><summary>Single text styles · 24 looks</summary>
+                    <label for="photo-styleCategory">Style collection</label><select id="photo-styleCategory" class="select-input"><option value="All">All styles</option><option>Headlines</option><option>Elegant</option><option>Script</option><option>Effects</option><option>Labels</option></select>
+                    <div class="photo-frame-grid photo-single-style-grid" id="photo-textPresets"></div>
+                    <p class="photo-small-note">Choose a style to add text, or restyle the selected layer. Your words, size, and position stay the same.</p>
+                  </details>
+                  <details class="photo-style-details" id="photo-layoutGallery" open><summary>Design layouts · 14 templates</summary>
+                  <label for="photo-layoutCategory">Collection</label>
+                  <select id="photo-layoutCategory" class="select-input"><option value="All">All layouts</option><option>Product</option><option>Greetings</option><option>Editorial</option></select>
+                  <div class="photo-frame-grid photo-layout-grid" id="photo-layoutPresets"></div>
+                  <p class="photo-small-note">Every line is editable. Drag a layout together, or choose an individual line below.</p>
+                  </details>
+                  <button type="button" class="btn btn-primary photo-full-button" id="photo-addText"><i data-lucide="plus"></i>Add text layer</button>
+                  <label for="photo-layerSelect">Text layers</label>
+                  <select id="photo-layerSelect" class="select-input"><option value="">No text layers yet</option></select>
+                  <fieldset id="photo-textSettings" disabled>
+                    <label class="photo-group-option"><input type="checkbox" id="photo-moveGroup" checked>Move layout together</label>
+                    <label for="photo-textContent">Your text</label><textarea id="photo-textContent" data-text-prop="text" maxlength="1000" rows="3" class="text-input" placeholder="Write something…"></textarea>
+                    <label for="photo-font">Font</label><select id="photo-font" data-text-prop="font" class="select-input"><option>Arial</option><option>Playfair Display</option><option>Dancing Script</option><option>Bebas Neue</option><option>Georgia</option><option>Courier New</option><option>Impact</option></select>
+                    <label for="photo-textEffect">Text effect</label><select id="photo-textEffect" data-text-prop="effect" class="select-input"><option value="none">None</option><option value="offset">Retro offset</option><option value="glow">Neon glow</option><option value="gradient">Color gradient</option><option value="hollow">Outline only</option></select>
+                    <label for="photo-effectColor">Effect / gradient color</label><input type="color" id="photo-effectColor" data-text-prop="effectColor" value="#15dacd">
+                    <div class="photo-field-row">
+                      <div><label for="photo-textSize">Size (px)</label><input type="number" id="photo-textSize" data-text-prop="size" min="8" max="4000" class="number-input" value="48"></div>
+                      <div><label for="photo-textColor">Text color</label><input type="color" id="photo-textColor" data-text-prop="color" value="#ffffff"></div>
+                    </div>
+                    <div class="photo-checks"><label><input type="checkbox" id="photo-bold">Bold</label><label><input type="checkbox" data-text-prop="italic" id="photo-italic">Italic</label></div>
+                    <label for="photo-textRotation">Rotation <span id="photo-rotationValue">0°</span></label><input type="range" id="photo-textRotation" data-text-prop="rotation" min="-180" max="180" value="0" class="slider">
+                    <label for="photo-textOpacity">Opacity <span id="photo-opacityValue">100%</span></label><input type="range" id="photo-textOpacity" data-text-prop="opacity" min="10" max="100" value="100" class="slider">
+                    <div class="photo-checks"><label><input type="checkbox" id="photo-shadow" data-text-prop="shadow">Shadow</label><label><input type="checkbox" id="photo-outline" data-text-prop="outline">Outline</label><label><input type="checkbox" id="photo-textBackground" data-text-prop="background">Background</label></div>
+                    <div class="photo-field-row"><div><label for="photo-outlineColor">Outline color</label><input type="color" id="photo-outlineColor" data-text-prop="outlineColor" value="#172033"></div><div><label for="photo-backgroundColor">Background color</label><input type="color" id="photo-backgroundColor" data-text-prop="backgroundColor" value="#172033"></div></div>
+                    <div class="photo-field-row"><button type="button" class="btn btn-outline" id="photo-duplicateText">Duplicate</button><button type="button" class="btn btn-outline" id="photo-deleteText">Delete text</button></div>
+                  </fieldset>
+                </div>
+                <div class="photo-tool-panel hidden" id="photo-tool-frames" role="tabpanel">
+                  <div class="photo-section-heading"><h3>A finishing touch</h3><p>Vintage scrolls, delicate florals, and gallery borders. Choose a design, then customize its colors.</p></div>
+                  <label for="photo-frameCategory">Frame collection</label><select id="photo-frameCategory" class="select-input"><option value="All">All frames · 24 designs</option><option>Vintage</option><option>Floral</option><option>Hand drawn</option><option>Minimal</option></select>
+                  <div class="photo-frame-grid" id="photo-framePresets"></div>
+                  <div class="photo-field-row"><div><label for="photo-frameColor">Border / leaves</label><input type="color" id="photo-frameColor" value="#526b53"></div><div><label for="photo-frameAccent">Flowers / accents</label><input type="color" id="photo-frameAccent" value="#df93a3"></div></div>
+                  <label for="photo-frameWidth">Frame size <span id="photo-frameWidthValue">7%</span></label><input type="range" id="photo-frameWidth" class="slider" min="2" max="14" value="7">
+                  <p class="photo-small-note">Frames sit inside the current photo edges. Crop first to choose your composition.</p>
+                </div>
+                <div class="photo-tool-panel hidden" id="photo-tool-blur" role="tabpanel">
+                  <div class="photo-section-heading"><h3>Preview your blur</h3><p>Drag a rectangle to see the blur immediately. Adjust its strength, then apply when it looks right.</p></div>
+                  <label for="photo-blurStrength">Blur strength <span id="photo-blurStrengthValue">12 px</span></label><input type="range" id="photo-blurStrength" min="1" max="80" value="12" class="slider">
+                  <div class="photo-selection-info" id="photo-selectionInfo">No area selected</div>
+                  <label class="photo-compare-option"><input type="checkbox" id="photo-showUnblurred">Compare with unblurred photo</label>
+                  <button type="button" class="btn btn-primary photo-full-button" id="photo-applyBlur" disabled>Apply blur to selection</button>
+                  <button type="button" class="btn btn-outline photo-full-button" id="photo-clearSelection" disabled>Clear selection</button>
+                  <h4 class="photo-blur-list-title">Applied areas</h4><div id="photo-blurList" class="photo-blur-list"><p class="photo-small-note">No blur areas yet.</p></div>
+                  <p class="photo-small-note">Blur affects the photo only. Text and decorative frames stay sharp.</p>
+                </div>
+                <div class="photo-tool-panel hidden" id="photo-tool-crop" role="tabpanel">
+                  <div class="photo-section-heading"><h3>Find the perfect composition</h3><p>Drag a rectangle on the photo. Adjust the crop below, then apply it. Undo restores the previous composition.</p></div>
+                  <label for="photo-cropRatio">Aspect ratio</label><select id="photo-cropRatio" class="select-input"><option value="0">Free crop</option><option value="1">Square · 1:1</option><option value="0.8">Product portrait · 4:5</option><option value="0.6666666667">Portrait · 2:3</option><option value="1.5">Landscape · 3:2</option><option value="1.7777777778">Widescreen · 16:9</option></select>
+                  <div class="photo-selection-info" id="photo-cropInfo">Drag on the photo to select a crop</div>
+                  <fieldset id="photo-cropSettings" disabled>
+                    <div class="photo-field-row"><div><label for="photo-cropX">Left (px)</label><input id="photo-cropX" data-crop-prop="x" type="number" min="0" class="number-input"></div><div><label for="photo-cropY">Top (px)</label><input id="photo-cropY" data-crop-prop="y" type="number" min="0" class="number-input"></div></div>
+                    <div class="photo-field-row"><div><label for="photo-cropW">Width (px)</label><input id="photo-cropW" data-crop-prop="width" type="number" min="2" class="number-input"></div><div><label for="photo-cropH">Height (px)</label><input id="photo-cropH" data-crop-prop="height" type="number" min="2" class="number-input"></div></div>
+                  </fieldset>
+                  <button type="button" class="btn btn-primary photo-full-button" id="photo-applyCrop" disabled>Apply crop</button>
+                  <button type="button" class="btn btn-outline photo-full-button" id="photo-clearCrop" disabled>Cancel selection</button>
+                  <button type="button" class="btn btn-outline photo-full-button" id="photo-resetCrop" disabled>Restore full photo</button>
+                  <p class="photo-small-note">Text, frames, and blur remain editable. Download uses the cropped dimensions.</p>
+                </div>
+              </aside>
+            </div>
           </section>
         </div>
       </div>

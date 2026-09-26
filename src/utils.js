@@ -1,7 +1,4 @@
 import JSZip from 'jszip';
-import { createWatermarkEngine, removeWatermarkFromImage } from '@pilio/gemini-watermark-remover/browser';
-
-let geminiWatermarkEnginePromise = null;
 
 /**
  * Format bytes to readable string (e.g. KB, MB)
@@ -190,95 +187,6 @@ export async function createZip(filesList) {
   }
   
   return zip.generateAsync({ type: 'blob' });
-}
-
-function getGeminiWatermarkEngine() {
-  if (!geminiWatermarkEnginePromise) {
-    geminiWatermarkEnginePromise = createWatermarkEngine();
-  }
-
-  return geminiWatermarkEnginePromise;
-}
-
-function canvasToBlob(canvas, type = 'image/png', quality) {
-  if (typeof canvas.convertToBlob === 'function') {
-    return canvas.convertToBlob({ type, quality });
-  }
-
-  if (typeof canvas.toBlob === 'function') {
-    return new Promise((resolve, reject) => {
-      canvas.toBlob((blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error('Failed to export cleaned image'));
-      }, type, quality);
-    });
-  }
-
-  throw new Error('Canvas export is unavailable in this browser');
-}
-
-async function fileToCanvas(file) {
-  try {
-    const bitmap = await createImageBitmap(file);
-    const canvas = document.createElement('canvas');
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
-
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) {
-      bitmap.close();
-      throw new Error('Canvas 2D context unavailable');
-    }
-
-    ctx.drawImage(bitmap, 0, 0);
-    bitmap.close();
-    return canvas;
-  } catch (error) {
-    console.warn('createImageBitmap failed for Gemini remover, falling back to Image loader:', error);
-    return fileToCanvasFallback(file);
-  }
-}
-
-function fileToCanvasFallback(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        if (!ctx) {
-          reject(new Error('Canvas 2D context unavailable'));
-          return;
-        }
-
-        ctx.drawImage(img, 0, 0);
-        resolve(canvas);
-      };
-      img.onerror = () => reject(new Error('Failed to decode image file'));
-      img.src = event.target.result;
-    };
-    reader.onerror = () => reject(new Error('FileReader read error'));
-    reader.readAsDataURL(file);
-  });
-}
-
-export async function removeGeminiWatermark(file, options = {}) {
-  const sourceCanvas = await fileToCanvas(file);
-  const engine = await getGeminiWatermarkEngine();
-  const { canvas, meta } = await removeWatermarkFromImage(sourceCanvas, {
-    engine,
-    adaptiveMode: 'auto',
-    maxPasses: options.maxPasses || 4
-  });
-
-  // Always export the canvas even when no watermark was detected.
-  // Callers can inspect meta.applied to decide what status to show.
-  const blob = await canvasToBlob(canvas, 'image/png');
-  return { blob, meta };
 }
 
 /**
